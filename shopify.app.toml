@@ -1,0 +1,43 @@
+# Shopify App Configuration
+# This file is used by Shopify CLI for app management and deployment.
+# Run `shopify app deploy` to register changes with Shopify.
+
+# IMPORTANT: Replace with your actual Client ID from Partner Dashboard
+# Partner Dashboard > Apps > [Your App] > Client credentials
+client_id = "YOUR_CLIENT_ID_HERE"
+
+name = "My Shopify App"
+handle = "my-shopify-app"
+application_url = "https://your-app-url.com/"
+
+# Embedded app configuration
+embedded = true
+
+[access_scopes]
+scopes = "read_products"
+use_legacy_install_flow = false
+
+# Webhooks — GDPR compliance topics are required by all Shopify apps
+[webhooks]
+api_version = "2026-01"
+
+  [[webhooks.subscriptions]]
+  uri = "https://your-webhook-url.com/customers_data_request"
+  compliance_topics = [ "customers/data_request" ]
+
+  [[webhooks.subscriptions]]
+  uri = "https://your-webhook-url.com/customers_redact"
+  compliance_topics = [ "customers/redact" ]
+
+  [[webhooks.subscriptions]]
+  uri = "https://your-webhook-url.com/shop_redact"
+  compliance_topics = [ "shop/redact" ]
+
+[auth]
+redirect_urls = [
+  "https://your-app-url.com/redirect"
+]
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "your-store.myshopify.com"
