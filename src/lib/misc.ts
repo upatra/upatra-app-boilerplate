@@ -19,3 +19,18 @@ export function getShopSlug(shopifyDomain: string): string {
 
   return shopSlug;
 }
+
+// URL of the embedded app inside the Shopify admin — used as the base when
+// constructing returnUrls for the billing flow. Requires VITE_APP_HANDLE to
+// match the handle Shopify assigns to the app.
+export function getShopifyAdminAppUrl(shopifyDomain: string): string {
+  const shopSlug = getShopSlug(shopifyDomain);
+  const appHandle = import.meta.env.VITE_APP_HANDLE ?? "";
+  return `https://admin.shopify.com/store/${shopSlug}/apps/${appHandle}`;
+}
+
+// Break out of the Shopify admin iframe before navigating. window.top.location
+// throws on cross-origin frames; window.open(_top) does not.
+export function redirectToUrl(url: string): void {
+  window.open(url, "_top");
+}

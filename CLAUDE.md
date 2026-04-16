@@ -22,8 +22,10 @@ Copy `.env.example` to `.env` and fill in:
 - `VITE_SHOPIFY_API_KEY` — Shopify app client ID (from Partner Dashboard > Apps > Client credentials)
 - `VITE_DEV_STORE_URL` — Dev store domain for local development outside Shopify admin
 - `VITE_API_URL` — Your backend API base URL
-- `VITE_APP_CODE` — App code identifier used by Apphub token exchange
+- `VITE_APP_CODE` — App code identifier used by Apphub token exchange + billing
 - `VITE_APPHUB_URL` — Apphub service base URL (handles Shopify token exchange)
+- `VITE_USE_MOCK` — Set `true` to run the app against MSW handlers (no backend required). Run `npx msw init public/` once before first use.
+- `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST` — Optional. PostHog stays inert when the key is empty.
 
 ## Architecture
 
@@ -43,6 +45,50 @@ Shopify Admin (iframe)
 1. `AppShell` calls `shopify.idToken()` on mount and passes it to `exchangeShopifyToken()`
 2. `AuthContext` calls `setSessionTokenGetter(() => shopify.idToken())` — injects the getter into `api.ts` without importing React context there
 3. Every `apiInstance` request automatically gets a fresh `Authorization: Bearer <token>` header
+4. The token exchange resolves with `isNewInstall`, which AppShell propagates into `AuthContext` for onboarding gating (`useAuth().isNewInstall`)
+
+### Routes & navigation
+
+`AppShell` renders three routes out of the box:
+- `/` — placeholder home (replace with your app's main page)
+- `/billing` — `BillingPage` (Polaris card grid driven by `PLANS` in `src/types/plan.ts`)
+- `/help` — `HelpPage` (table of contents + article cards; replace `ARTICLES` with your content)
+
+The Shopify `<s-app-nav>` is wired in `AppShell` with `<s-link>` entries for `/billing` and `/help`. Add more links there as routes grow. The capture-phase click handler triggers `shopify.loading(true)` before navigation so the merchant sees the loading bar immediately.
+
+### Billing (`PlanContext`)
+
+`PlanProvider` wraps the routes (in `AppContent`). It fetches the active plan from Apphub, exposes `usePlan()`:
+
+```ts
+const { currentShopPlan, activeSelectedPlan, cancelCurrentPlan, isInPlan, maxRowsPerUpload, isPlanFetched } = usePlan()
+if (isInPlan(PlanType.Paid)) { /* paid feature */ }
+```
+
+Define your plans in `src/types/plan.ts` — `ALL_PLANS` (visible + hidden), `PlanIdMapper` (id → tier), `PlanType` enum. The `BillingPlanGrid` reads `PLANS` (visible only) and renders one card per plan, plus a Free card.
+
+### Analytics (`posthog.ts`)
+
+`initPostHog()` runs once in `AppShell`; it's a no-op unless `VITE_POSTHOG_KEY` is set. Use:
+- `identifyShop(shop)` — once per session, after auth
+- `setShopProperties({...})` — when subscription state changes
+- `capture("event_name", {...})` — for funnel events
+
+PostHog is configured for embedded use: no autocapture, no cookies (memory persistence), no automatic pageviews.
+
+### Onboarding state (`onboardingState.ts`)
+
+`createOnboardingStore("prefix")` returns a typed accessor for per-shop boolean flags backed by localStorage with safe wrappers (private mode, quota errors are swallowed).
+
+```ts
+const onboarding = createOnboardingStore("onboarding")
+onboarding.set(shop, "dismissed")
+if (onboarding.has(shop, "dismissed")) { ... }
+```
+
+### Mock mode (MSW)
+
+When `VITE_USE_MOCK=true`, `src/main.tsx` starts the MSW worker before mounting React. Handlers live in `src/mocks/handlers.ts` (Apphub mocks for token exchange + billing out of the box — extend with backend mocks alongside). Run `npx msw init public/` once after install to generate the service worker.
 
 ### State Management
 
@@ -50,12 +96,12 @@ No global state library. Add React Context + `useReducer` per feature as needed 
 
 ### API Layer
 
-`src/lib/api.ts` — Axios instance with:
+`src/lib/api.ts` — Axios instance for the app's own backend (`VITE_API_URL`):
 - Auto snake_case ↔ camelCase conversion via `humps`
-- Retry on 5xx (3 retries, 1s delay, per-request budget)
+- Retry on 5xx (3 retries, 1s delay, per-request budget — concurrent requests retry independently)
 - Session token injected per-request via `setSessionTokenGetter` abstraction
 
-`src/lib/apphubApi.ts` — Shopify token exchange with the Apphub service.
+`src/lib/apphubApi.ts` — Apphub instance for Shopify token exchange and billing endpoints (`exchangeShopifyToken`, `getActivePlan`, `activePlan`, `cancelPlan`). Same conventions as `api.ts`.
 
 ### Adding Features
 
