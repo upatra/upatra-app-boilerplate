@@ -1,39 +1,45 @@
-import { Page, Spinner, Text } from "@shopify/polaris";
+import { SkeletonPage } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
-import { AuthProvider, useAuth } from "../context";
+import { Route, Routes, useLocation, useSearchParams } from "react-router-dom";
+import { AuthProvider, PlanProvider, useAuth } from "../context";
+import Footer from "./Footer";
 import { exchangeShopifyToken } from "../lib/apphubApi";
 import { setSessionTokenGetter } from "../lib/api";
+import { identifyShop, initPostHog } from "../lib/posthog";
+import { BillingPage, HelpPage } from "../pages";
 
-// ─── Inner shell (rendered inside AuthProvider) ───────────────────────────────
+const APP_TITLE = "My Shopify App";
+const SUPPORT_EMAIL = ""; // set a support email to render the footer
 
-function AppContent() {
-  const { isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", paddingTop: "80px" }}>
-        <Spinner />
-      </div>
-    );
-  }
-
+function HomePage() {
   return (
-    <Page title="My Shopify App">
-      <Text as="p" variant="bodyMd">
-        Your app content goes here. Add routes and components to build your app.
-      </Text>
-    </Page>
+    <SkeletonPage title={APP_TITLE}>
+      {/* Replace with the app's home page content. */}
+    </SkeletonPage>
   );
 }
 
-// ─── App shell with App Bridge + Auth wiring ─────────────────────────────────
+function AppContent() {
+  const { isLoading } = useAuth();
+  if (isLoading) return <SkeletonPage primaryAction />;
+
+  return (
+    <PlanProvider>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/billing" element={<BillingPage />} />
+        <Route path="/help" element={<HelpPage />} />
+      </Routes>
+      <Footer supportEmail={SUPPORT_EMAIL} />
+    </PlanProvider>
+  );
+}
 
 export default function AppShell() {
   const shopify = useAppBridge();
   const [authReady, setAuthReady] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [isNewInstall, setIsNewInstall] = useState<boolean | null>(null);
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navRef = useRef<HTMLDivElement>(null);
@@ -42,60 +48,60 @@ export default function AppShell() {
   const host = searchParams.get("host") || "";
 
   useEffect(() => {
+    initPostHog();
+  }, []);
+
+  useEffect(() => {
     if (!shopify?.idToken) return;
     setSessionTokenGetter(() => shopify.idToken());
     shopify
       .idToken()
       .then((code) => {
         setAuthReady(true);
-        // Fire-and-forget: exchange token in background, does not block rendering
-        exchangeShopifyToken(shop, code);
+        if (shop) identifyShop(shop);
+        // Fire-and-forget: exchange token in background. When it resolves,
+        // propagate isNewInstall so onboarding can gate on the backend signal.
+        exchangeShopifyToken(shop, code).then((res) => {
+          if (res && "isNewInstall" in res && typeof res.isNewInstall === "boolean") {
+            setIsNewInstall(res.isNewInstall);
+          }
+        });
       })
       .catch((e) => {
         console.error("Error getting session token:", e);
-        setAuthReady(true); // unblock so errors show in UI
+        setAuthReady(true); // unblock so errors surface in the UI
       });
   }, [shopify]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Clear loading indicator once the new route has rendered
   useEffect(() => {
-    setIsNavigating(false);
+    shopify.loading(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!authReady) return;
     shopify.loading(false);
-  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authReady, location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Capture phase: loading bar appears before navigation begins
   useEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
-    const handleClick = () => {
-      setIsNavigating(true);
-      shopify.loading(true);
-    };
+    const handleClick = () => shopify.loading(true);
     nav.addEventListener("click", handleClick, { capture: true });
     return () => nav.removeEventListener("click", handleClick, { capture: true });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <AuthProvider host={host} shop={shop}>
-      <TitleBar title="My Shopify App" />
-      {!authReady || isNavigating ? (
-        <div style={{ display: "flex", justifyContent: "center", paddingTop: "80px" }}>
-          <Spinner />
-        </div>
-      ) : (
-        <AppContent />
-      )}
+    <AuthProvider host={host} shop={shop} isNewInstall={isNewInstall}>
+      <TitleBar title={APP_TITLE} />
+      {!authReady ? <SkeletonPage primaryAction /> : <AppContent />}
 
-      {/*
-        Navigation sidebar — uncomment and add routes as needed:
-
-        <div ref={navRef}>
-          <s-app-nav>
-            <s-link href="/dashboard">Dashboard</s-link>
-            <s-link href="/settings">Settings</s-link>
-          </s-app-nav>
-        </div>
-      */}
+      <div ref={navRef}>
+        <s-app-nav>
+          <s-link href="/billing">Billing</s-link>
+          <s-link href="/help">Help</s-link>
+        </s-app-nav>
+      </div>
     </AuthProvider>
   );
 }

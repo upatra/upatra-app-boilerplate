@@ -7,35 +7,35 @@ import { setSessionTokenGetter } from '../lib/api'
 type AuthProviderProps = {
   host: string
   shop: string
+  isNewInstall: boolean | null
   children: ReactNode
 }
 
-export type AuthContext = {
+export type AuthContextValue = {
   host: string
   shopifyDomain: string
   isLoading: boolean
+  isNewInstall: boolean | null
   getSessionToken: () => Promise<string>
 }
 
-const AuthContext = createContext({} as AuthContext)
+const AuthContext = createContext({} as AuthContextValue)
 
 export function useAuth() {
   return useContext(AuthContext)
 }
 
-export function AuthProvider({ host, shop, children }: AuthProviderProps) {
+export function AuthProvider({ host, shop, isNewInstall, children }: AuthProviderProps) {
   const shopify = useAppBridge()
-  const shopifyDomain = normalizeShopifyDomain(shop)
+  // App Bridge config carries the shop — fall back to it when the URL param
+  // is absent (e.g. after client-side navigation drops ?shop=).
+  const resolvedShop = shop || (shopify as { config?: { shop?: string } }).config?.shop || ''
+  const shopifyDomain = normalizeShopifyDomain(resolvedShop)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    ;(async () => {
-      console.log('Exchanging Shopify token for store:', shopifyDomain)
-      // Inject session token getter into API layer
-      setSessionTokenGetter(() => shopify.idToken())
-      // Run in background without blocking
-      setIsLoading(false)
-    })()
+    setSessionTokenGetter(() => shopify.idToken())
+    setIsLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -45,8 +45,7 @@ export function AuthProvider({ host, shop, children }: AuthProviderProps) {
 
     while (retryCount < maxRetries) {
       try {
-        const sessionToken = await shopify.idToken()
-        return sessionToken
+        return await shopify.idToken()
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         console.error(`Attempt ${retryCount + 1} failed: ${errorMessage}`)
@@ -70,6 +69,7 @@ export function AuthProvider({ host, shop, children }: AuthProviderProps) {
         host,
         isLoading,
         shopifyDomain,
+        isNewInstall,
         getSessionToken,
       }}
     >
