@@ -10,7 +10,6 @@ import { identifyShop, initPostHog } from "../lib/posthog";
 import { BillingPage, HelpPage } from "../pages";
 
 const APP_TITLE = "My Shopify App";
-const SUPPORT_EMAIL = ""; // set a support email to render the footer
 
 function HomePage() {
   return (
@@ -31,7 +30,7 @@ function AppContent() {
         <Route path="/billing" element={<BillingPage />} />
         <Route path="/help" element={<HelpPage />} />
       </Routes>
-      <Footer supportEmail={SUPPORT_EMAIL} />
+      <Footer />
     </PlanProvider>
   );
 }

@@ -2,12 +2,9 @@ import { Box, Icon, InlineStack, Text } from "@shopify/polaris";
 import { QuestionCircleIcon } from "@shopify/polaris-icons";
 import CopyEmailLink from "./CopyEmailLink";
 
-interface Props {
-  supportEmail?: string;
-}
+export const SUPPORT_EMAIL = "steve@upatra.com";
 
-export default function Footer({ supportEmail }: Props) {
-  if (!supportEmail) return null;
+export default function Footer() {
   return (
     <Box paddingBlock="400" paddingInline="400">
       <InlineStack align="center">
@@ -15,7 +12,7 @@ export default function Footer({ supportEmail }: Props) {
           <Icon source={QuestionCircleIcon} tone="subdued" />
           <Text as="p" tone="subdued" variant="bodySm">
             Got any trouble or have recommendations? Mail us at{" "}
-            <CopyEmailLink email={supportEmail} />
+            <CopyEmailLink email={SUPPORT_EMAIL} />
           </Text>
         </InlineStack>
       </InlineStack>

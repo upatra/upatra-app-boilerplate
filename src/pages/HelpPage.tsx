@@ -12,6 +12,7 @@ import {
   Text,
 } from "@shopify/polaris";
 import CopyEmailLink from "../components/CopyEmailLink";
+import { SUPPORT_EMAIL } from "../components/Footer";
 
 interface ArticleSection {
   heading: string;
@@ -51,8 +52,6 @@ const ARTICLES: Article[] = [
     ],
   },
 ];
-
-const SUPPORT_EMAIL = ""; // set to a support address to surface it in the TOC card
 
 function ArticleCard({ article }: { article: Article }) {
   return (
@@ -119,14 +118,10 @@ function TableOfContents() {
             </Link>
           ))}
         </BlockStack>
-        {SUPPORT_EMAIL && (
-          <>
-            <Divider />
-            <Text as="p" variant="bodySm" tone="subdued">
-              Still stuck? Email <CopyEmailLink email={SUPPORT_EMAIL} />.
-            </Text>
-          </>
-        )}
+        <Divider />
+        <Text as="p" variant="bodySm" tone="subdued">
+          Still stuck? Email <CopyEmailLink email={SUPPORT_EMAIL} />.
+        </Text>
       </BlockStack>
     </Card>
   );
