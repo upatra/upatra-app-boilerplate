@@ -25,8 +25,11 @@ export default {
       moduleFileExtensions: ['ts', 'tsx', 'js', 'mjs', 'jsx', 'cjs'],
       setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
       moduleNameMapper: {
-        // Shim CJS packages that don't provide ESM named exports
-        '^humps$': '<rootDir>/src/test/shims/humps.cjs',
+        // Shim CJS packages that don't provide ESM named exports. Use the
+        // .ts shim — under ESM jest cannot reliably read named exports from
+        // a CJS file via cjs-module-lexer, but the .ts re-export bridge
+        // works because ts-jest emits real ESM exports.
+        '^humps$': '<rootDir>/src/test/shims/humps.ts',
         '^@/(.*)$': '<rootDir>/src/$1',
       },
     },

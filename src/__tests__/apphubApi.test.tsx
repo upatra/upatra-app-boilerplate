@@ -2,9 +2,10 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from "@jest/glob
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 import { exchangeShopifyToken, getActivePlan } from "../lib/apphubApi";
+import { env } from "../config/env";
 
-const APPHUB = (import.meta.env?.VITE_APPHUB_URL ?? "") as string;
-const APP_CODE = (import.meta.env?.VITE_APP_CODE ?? "") as string;
+const APPHUB = env.apphubUrl;
+const APP_CODE = env.appCode;
 
 const server = setupServer();
 

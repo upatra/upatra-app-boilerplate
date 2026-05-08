@@ -1,3 +1,5 @@
+import { env } from "../config/env";
+
 export function normalizeShopifyDomain(shopifyDomain: string): string {
   const lowerCase = shopifyDomain.toLowerCase().trim();
   const shopifyRegex = /.+\.myshopify\.com$/;
@@ -25,8 +27,7 @@ export function getShopSlug(shopifyDomain: string): string {
 // match the handle Shopify assigns to the app.
 export function getShopifyAdminAppUrl(shopifyDomain: string): string {
   const shopSlug = getShopSlug(shopifyDomain);
-  const appHandle = import.meta.env.VITE_APP_HANDLE ?? "";
-  return `https://admin.shopify.com/store/${shopSlug}/apps/${appHandle}`;
+  return `https://admin.shopify.com/store/${shopSlug}/apps/${env.appHandle}`;
 }
 
 // Break out of the Shopify admin iframe before navigating. window.top.location
