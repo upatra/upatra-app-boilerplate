@@ -26,7 +26,7 @@ import type { Plan } from "../types/plan";
 const planCard = (extra?: React.CSSProperties): React.CSSProperties => ({
   background: "var(--p-color-bg-surface)",
   borderRadius: "var(--p-border-radius-300)",
-  boxShadow: "var(--p-shadow-100)",
+  boxShadow: "var(--p-shadow-200)",
   outline: "var(--p-border-width-025) solid var(--p-color-border)",
   display: "flex",
   flexDirection: "column",
