@@ -47,6 +47,14 @@ const planCardFooter: React.CSSProperties = {
   borderTop: "var(--p-border-width-025) solid var(--p-color-border)",
 };
 
+// margin-top:auto pushes the action button to the bottom of the flex column,
+// so buttons stay horizontally aligned across cards regardless of how many
+// benefits each plan lists.
+const planCardAction: React.CSSProperties = {
+  marginTop: "auto",
+  paddingTop: "var(--p-space-500)",
+};
+
 export default function BillingPlanGrid() {
   const { currentShopPlan, cancelCurrentPlan, activeSelectedPlan, isPlanFetched } =
     usePlan();
@@ -187,7 +195,7 @@ export default function BillingPlanGrid() {
               )}
               {renderFeatures(FREE_BENEFITS)}
             </BlockStack>
-            <Box paddingBlockStart="500">
+            <div style={planCardAction}>
               <Button
                 variant="secondary"
                 disabled={!isPlanFetched || !hasActivePlan}
@@ -196,7 +204,7 @@ export default function BillingPlanGrid() {
               >
                 {!hasActivePlan ? "Current Plan" : "Downgrade to Free"}
               </Button>
-            </Box>
+            </div>
           </div>
           {anyPlanHasTrialFooter ? (
             <div style={planCardFooter}>
@@ -233,7 +241,7 @@ export default function BillingPlanGrid() {
                   )}
                   {renderFeatures(plan.benefits)}
                 </BlockStack>
-                <Box paddingBlockStart="500">
+                <div style={planCardAction}>
                   <Button
                     variant={plan.popular ? "primary" : "secondary"}
                     disabled={!isPlanFetched || current || activatingPlanId !== null}
@@ -253,7 +261,7 @@ export default function BillingPlanGrid() {
                   >
                     {current ? "Current Plan" : `Get ${plan.displayName}`}
                   </Button>
-                </Box>
+                </div>
               </div>
               {plan.trialDays && plan.trialDays > 0 ? (
                 <div style={planCardFooter}>
