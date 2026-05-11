@@ -18,14 +18,19 @@ npx jest path/to/__tests__/file.test.ts
 
 ## Environment
 
+All env reads go through `src/config/env.ts` — never read `import.meta.env.VITE_*` directly from feature code. Add new keys there with a sensible default and import the typed `env` object.
+
 Copy `.env.example` to `.env` and fill in:
 - `VITE_SHOPIFY_API_KEY` — Shopify app client ID (from Partner Dashboard > Apps > Client credentials)
 - `VITE_DEV_STORE_URL` — Dev store domain for local development outside Shopify admin
 - `VITE_API_URL` — Your backend API base URL
 - `VITE_APP_CODE` — App code identifier used by Apphub token exchange + billing
+- `VITE_APP_HANDLE` — App handle used to build billing returnUrl
 - `VITE_APPHUB_URL` — Apphub service base URL (handles Shopify token exchange)
 - `VITE_USE_MOCK` — Set `true` to run the app against MSW handlers (no backend required). Run `npx msw init public/` once before first use.
-- `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST` — Optional. PostHog stays inert when the key is empty.
+- `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST` — Optional. PostHog stays inert when the key is empty (and outside production builds).
+- `VITE_LOG_LEVEL` / `VITE_LOG_SINKS` — Optional logger overrides. See `src/config/logging.ts` for the declarative baseline.
+- `VITE_SUPPORT_EMAIL` / `VITE_SUPPORT_HINT` — Optional. Defaults are set in `src/config/env.ts`.
 
 ## Architecture
 
@@ -37,15 +42,19 @@ This is a **Shopify embedded app** boilerplate (React + Vite) using Shopify Pola
 Shopify Admin (iframe)
   └── App Bridge (window.shopify)
         └── shopify.idToken()
-              └── AuthContext (setSessionTokenGetter)
+              └── useAuthExchange hook (setSessionTokenGetter)
                     └── api.ts interceptor (Bearer token on every request)
                           └── apphubApi.ts (token exchange on bootstrap)
 ```
 
-1. `AppShell` calls `shopify.idToken()` on mount and passes it to `exchangeShopifyToken()`
-2. `AuthContext` calls `setSessionTokenGetter(() => shopify.idToken())` — injects the getter into `api.ts` without importing React context there
+1. `AppShell` invokes `useAuthExchange({ shopify, shop })` which calls `shopify.idToken()` and exchanges it via `exchangeShopifyToken()`
+2. The hook calls `setSessionTokenGetter(() => shopify.idToken())` — injects the getter into `api.ts` without importing React context there
 3. Every `apiInstance` request automatically gets a fresh `Authorization: Bearer <token>` header
 4. The token exchange resolves with `isNewInstall`, which AppShell propagates into `AuthContext` for onboarding gating (`useAuth().isNewInstall`)
+
+#### Auth grace-period retry
+
+`apphubApi.exchangeShopifyToken` calls `markExchangeStart()`/`markExchangeEnd()` from `api.ts`. While the exchange is in flight (or for 15s after it resolves), both axios clients retry 401/403/404 responses with exponential backoff (1s, 2s, 4s, 8s, 16s — ~31s total). This absorbs the window where the backend hasn't yet provisioned the shop row on a fresh install. The grace period is shared across both API clients via the shared markers in `api.ts`.
 
 ### Routes & navigation
 
@@ -67,9 +76,30 @@ if (isInPlan(PlanType.Paid)) { /* paid feature */ }
 
 Define your plans in `src/types/plan.ts` — `ALL_PLANS` (visible + hidden), `PlanIdMapper` (id → tier), `PlanType` enum. The `BillingPlanGrid` reads `PLANS` (visible only) and renders one card per plan, plus a Free card.
 
+### Logging (`logger.ts` + `config/logging.ts`)
+
+Use the structured logger instead of `console.*` in app code:
+
+```ts
+import { log } from "./lib/logger";
+const authLog = log.feature("auth"); // scoped logger
+
+authLog.info("retrying request", { url, attempt });
+authLog.exception(e, { where: "exchangeToken" }); // also forwarded to PostHog
+```
+
+- Levels: `debug` < `info` < `warn` < `error`. Drop with `silent`.
+- Sinks: `console` and/or `posthog`. PostHog sink only fires after `initPostHog()` succeeds (production + key set).
+- Per-feature thresholds in `src/config/logging.ts` (e.g. `auth: "info"`, `plan: "warn"`).
+- Env overrides at deploy time: `VITE_LOG_LEVEL=debug`, `VITE_LOG_SINKS=console,posthog`.
+
 ### Analytics (`posthog.ts`)
 
-`initPostHog()` runs once in `AppShell`; it's a no-op unless `VITE_POSTHOG_KEY` is set. Use:
+`initPostHog()` runs once in `AppShell`; it's a no-op unless `VITE_POSTHOG_KEY` is set AND the build is production. When it activates it also:
+- Wires the logger's exception capturer so `log.exception(...)` reaches PostHog
+- Installs `window.error` and `unhandledrejection` handlers so uncaught crashes are captured
+
+Use:
 - `identifyShop(shop)` — once per session, after auth
 - `setShopProperties({...})` — when subscription state changes
 - `capture("event_name", {...})` — for funnel events
@@ -90,18 +120,25 @@ if (onboarding.has(shop, "dismissed")) { ... }
 
 When `VITE_USE_MOCK=true`, `src/main.tsx` starts the MSW worker before mounting React. Handlers live in `src/mocks/handlers.ts` (Apphub mocks for token exchange + billing out of the box — extend with backend mocks alongside). Run `npx msw init public/` once after install to generate the service worker.
 
+### Hooks (`src/hooks/`)
+
+- `useAuthExchange({ shopify, shop })` — boots App Bridge auth: wires `setSessionTokenGetter`, calls `shopify.idToken()`, exchanges with Apphub, returns `{ authReady, isNewInstall }`. Used by `AppShell`.
+- `useScrollToError(error)` — returns a ref to wrap an error banner. When `error` becomes truthy, scrolls the window and the nearest scrollable ancestor (e.g. a Polaris Modal body) to the top so the banner is the first thing the user sees.
+
 ### State Management
 
 No global state library. Add React Context + `useReducer` per feature as needed (see `src/context/` for the auth example).
 
 ### API Layer
 
-`src/lib/api.ts` — Axios instance for the app's own backend (`VITE_API_URL`):
+`src/lib/api.ts` — Axios instance for the app's own backend (`env.apiUrl`):
 - Auto snake_case ↔ camelCase conversion via `humps`
 - Retry on 5xx (3 retries, 1s delay, per-request budget — concurrent requests retry independently)
+- Auth grace-period retry on 401/403/404 (5 attempts, exponential backoff) while a token exchange is in flight or just resolved
 - Session token injected per-request via `setSessionTokenGetter` abstraction
+- `x-app-code` header automatically attached when `env.appCode` is set
 
-`src/lib/apphubApi.ts` — Apphub instance for Shopify token exchange and billing endpoints (`exchangeShopifyToken`, `getActivePlan`, `activePlan`, `cancelPlan`). Same conventions as `api.ts`.
+`src/lib/apphubApi.ts` — Apphub instance for Shopify token exchange and billing endpoints (`exchangeShopifyToken`, `getActivePlan`, `activePlan`, `cancelPlan`). Same conventions as `api.ts`, including the shared auth grace-period retry.
 
 ### Adding Features
 
@@ -160,5 +197,5 @@ jest.spyOn(apiInstance, 'get').mockResolvedValue(...)
 
 - `src/test/msw/server.ts` — MSW server (import in individual tests or via `setupFilesAfterEnv`)
 - `src/test/msw/handlers.ts` — shared handlers (add global mocks here)
-- `src/test/setup.ts` — jest-dom matchers + Polaris `matchMedia` polyfill
+- `src/test/setup.ts` — jest-dom matchers, Polaris `matchMedia` polyfill, `Blob.arrayBuffer` polyfill, `window.shopify` stub (toast / loading / idToken)
 - `src/test/shims/` — CJS shims for packages that lack ESM named exports

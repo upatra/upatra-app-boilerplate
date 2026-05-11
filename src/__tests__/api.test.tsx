@@ -2,9 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from "@jest/glob
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 import { apiInstance } from "../lib/api";
+import { env } from "../config/env";
 
-// In jsdom env, axios resolves relative baseURL paths against http://localhost
-const BASE = "http://localhost";
+const BASE = env.apiUrl;
 
 const server = setupServer();
 

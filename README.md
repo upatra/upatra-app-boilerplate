@@ -4,15 +4,19 @@ A production-ready starter for **Shopify embedded apps** — React 18 + Vite 6 +
 
 ## What's included
 
-- **Auth flow** — `shopify.idToken()` → `AuthContext` → axios `Bearer` interceptor, with `isNewInstall` propagated for onboarding gating.
+- **Auth flow** — `shopify.idToken()` → `useAuthExchange` hook → axios `Bearer` interceptor, with `isNewInstall` propagated for onboarding gating.
+- **Auth grace-period retry** — fresh-install 401/403/404s retry with exponential backoff (1s → 16s) while the token exchange is racing the first API calls. Both `api.ts` and `apphubApi.ts` share the same grace window.
 - **Two API instances** — `api.ts` for your backend (`VITE_API_URL`) and `apphubApi.ts` for Apphub (token exchange + billing). Both auto-convert snake_case ↔ camelCase via `humps` and retry 5xx with a per-request budget.
+- **Centralized env config** — `src/config/env.ts` is the single source of truth for `import.meta.env` reads. Typed, defaulted, ready to import everywhere.
+- **Structured logger** — `src/lib/logger.ts` with feature-scoped levels (`log.feature("auth")`), pluggable sinks (`console`, `posthog`), and an exception-capturer hook. Declarative baseline in `src/config/logging.ts`; `VITE_LOG_LEVEL` / `VITE_LOG_SINKS` override at deploy time.
+- **PostHog with global error capture** — production-only init, plus `window.error` and `unhandledrejection` handlers wired through the logger so uncaught crashes surface in PostHog automatically.
 - **Billing** — `PlanContext` + `BillingPage` (responsive Polaris card grid). Define plans in `src/types/plan.ts`.
 - **Help page** — TOC + article scaffold to host your in-app docs.
-- **Analytics** — PostHog module configured for Shopify iframes. Inert when `VITE_POSTHOG_KEY` is empty.
 - **Onboarding state** — per-shop localStorage helpers with safe wrappers.
+- **Reusable hooks** — `useAuthExchange` (boots App Bridge + token exchange), `useScrollToError` (auto-scrolls error banners into view).
 - **MSW dev mode** — set `VITE_USE_MOCK=true` to run the UI without a backend.
 - **Bundle splitting** — Polaris, PostHog, and React/Router/axios in their own chunks for faster iframe loads.
-- **Testing** — Jest with two-suite split (unit / integration), MSW v2, Polaris-friendly jsdom env, humps CJS shim.
+- **Testing** — Jest with two-suite split (unit / integration), MSW v2, Polaris-friendly jsdom env, `window.shopify` stub, Blob.arrayBuffer polyfill, humps CJS shim.
 
 ## Getting started
 
@@ -46,8 +50,12 @@ Then either:
 | `VITE_DEV_STORE_URL` | No | Dev store domain used outside Shopify admin. |
 | `VITE_USE_MOCK` | No | `true` to start MSW in the browser. Default `false`. |
 | `VITE_POSTHOG_KEY` | No | When set, PostHog initializes; when empty, all PostHog calls are no-ops. |
-| `VITE_POSTHOG_HOST` | No | PostHog ingestion host. Defaults to US cloud in `.env.example`. |
+| `VITE_POSTHOG_HOST` | No | PostHog ingestion host. Defaults to `https://us.i.posthog.com`. |
 | `VITE_APP_HANDLE` | No | App handle used in the Shopify subscription return URL (Billing flow). |
+| `VITE_LOG_LEVEL` | No | Override default log threshold (`debug` / `info` / `warn` / `error` / `silent`). |
+| `VITE_LOG_SINKS` | No | Comma-separated list of active sinks (`console`, `posthog`). |
+| `VITE_SUPPORT_EMAIL` | No | Support email shown in the footer. Default `steve@upatra.com`. |
+| `VITE_SUPPORT_HINT` | No | Hint text under the support email. |
 
 ## Scripts
 
@@ -74,18 +82,25 @@ Quick map of `src/`:
 ```
 src/
 ├── App.tsx                  Root; Polaris AppProvider + BrowserRouter
-├── main.tsx                 Entry; conditionally starts MSW
+├── main.tsx                 Entry; bootstraps logger, conditionally starts MSW
 ├── components/
 │   ├── AppShell.tsx         App Bridge wiring + routes + s-app-nav + footer
 │   ├── CopyEmailLink.tsx
 │   └── Footer.tsx
+├── config/
+│   ├── env.ts               Single source of truth for import.meta.env reads
+│   └── logging.ts           Declarative logger config (per-feature thresholds)
 ├── context/
 │   ├── AuthContext.tsx      idToken getter, shopifyDomain, isNewInstall
 │   └── PlanContext.tsx      Active plan, activate/cancel, isInPlan helper
+├── hooks/
+│   ├── useAuthExchange.ts   Boots App Bridge token + Apphub exchange
+│   └── useScrollToError.ts  Auto-scrolls error banners into view
 ├── lib/
-│   ├── api.ts               Backend axios instance
+│   ├── api.ts               Backend axios instance + auth grace-period retry
 │   ├── apphubApi.ts         Apphub axios instance + billing functions
-│   ├── posthog.ts           Analytics (env-gated)
+│   ├── logger.ts            Structured logger (feature scopes, multi-sink)
+│   ├── posthog.ts           Analytics + global error handlers
 │   ├── onboardingState.ts   Per-shop localStorage flag factory
 │   └── misc.ts              Shopify domain normalization
 ├── mocks/

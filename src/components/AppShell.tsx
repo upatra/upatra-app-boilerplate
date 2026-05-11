@@ -1,12 +1,11 @@
 import { SkeletonPage } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { AuthProvider, PlanProvider, useAuth } from "../context";
 import Footer from "./Footer";
-import { exchangeShopifyToken } from "../lib/apphubApi";
-import { setSessionTokenGetter } from "../lib/api";
-import { identifyShop, initPostHog } from "../lib/posthog";
+import { useAuthExchange } from "../hooks/useAuthExchange";
+import { initPostHog } from "../lib/posthog";
 import { BillingPage, HelpPage } from "../pages";
 
 const APP_TITLE = "My Shopify App";
@@ -37,8 +36,6 @@ function AppContent() {
 
 export default function AppShell() {
   const shopify = useAppBridge();
-  const [authReady, setAuthReady] = useState(false);
-  const [isNewInstall, setIsNewInstall] = useState<boolean | null>(null);
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navRef = useRef<HTMLDivElement>(null);
@@ -46,31 +43,11 @@ export default function AppShell() {
   const shop = searchParams.get("shop") || "";
   const host = searchParams.get("host") || "";
 
+  const { authReady, isNewInstall } = useAuthExchange({ shopify, shop });
+
   useEffect(() => {
     initPostHog();
   }, []);
-
-  useEffect(() => {
-    if (!shopify?.idToken) return;
-    setSessionTokenGetter(() => shopify.idToken());
-    shopify
-      .idToken()
-      .then((code) => {
-        setAuthReady(true);
-        if (shop) identifyShop(shop);
-        // Fire-and-forget: exchange token in background. When it resolves,
-        // propagate isNewInstall so onboarding can gate on the backend signal.
-        exchangeShopifyToken(shop, code).then((res) => {
-          if (res && "isNewInstall" in res && typeof res.isNewInstall === "boolean") {
-            setIsNewInstall(res.isNewInstall);
-          }
-        });
-      })
-      .catch((e) => {
-        console.error("Error getting session token:", e);
-        setAuthReady(true); // unblock so errors surface in the UI
-      });
-  }, [shopify]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     shopify.loading(true);

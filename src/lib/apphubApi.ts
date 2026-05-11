@@ -1,13 +1,24 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import { camelizeKeys, decamelizeKeys } from "humps";
-import { getSessionToken } from "./api";
+import {
+  getSessionToken,
+  isInAuthGracePeriod,
+  markExchangeEnd,
+  markExchangeStart,
+} from "./api";
+import { env } from "../config/env";
+import { log } from "./logger";
 import type { ApphubShopPlan, PlanInterval, ShopPlan } from "../types/plan";
 
-const APPHUB_URL = import.meta.env?.VITE_APPHUB_URL ?? "";
-const SHOPIFY_APP_CODE = import.meta.env?.VITE_APP_CODE ?? "";
+const APPHUB_URL = env.apphubUrl;
+const SHOPIFY_APP_CODE = env.appCode;
 
 const maxRetries = 3;
 const retryInterval = 1000;
+const maxAuthRetries = 5;
+
+const authLog = log.feature("auth");
+const planLog = log.feature("plan");
 
 const apphubInstance = axios.create({
   baseURL: APPHUB_URL,
@@ -38,7 +49,9 @@ apphubInstance.interceptors.response.use(
   (error) => {
     const { config, response } = error;
     if (config && response && (response.status >= 500 || !response.status)) {
-      const cfg = config as InternalAxiosRequestConfig & { __retryCount?: number };
+      const cfg = config as InternalAxiosRequestConfig & {
+        __retryCount?: number;
+      };
       cfg.__retryCount = (cfg.__retryCount ?? 0) + 1;
       if (cfg.__retryCount <= maxRetries) {
         return new Promise((resolve) =>
@@ -46,6 +59,41 @@ apphubInstance.interceptors.response.use(
         );
       }
     }
+
+    // Apphub plan endpoints can 401/403/404 while the shop row is being
+    // provisioned. Retry within the auth grace window so the billing page
+    // doesn't flash an error during fresh installs. Skip the exchange_token
+    // endpoint itself — that call IS the grace-period source, retrying it
+    // would deadlock with itself.
+    const url = (config?.url as string | undefined) ?? "";
+    const isExchange = url.includes("/exchange_token");
+    if (
+      config &&
+      !isExchange &&
+      response &&
+      (response.status === 401 ||
+        response.status === 403 ||
+        response.status === 404) &&
+      isInAuthGracePeriod()
+    ) {
+      const cfg = config as InternalAxiosRequestConfig & {
+        __authRetryCount?: number;
+      };
+      cfg.__authRetryCount = (cfg.__authRetryCount ?? 0) + 1;
+      if (cfg.__authRetryCount <= maxAuthRetries) {
+        const delay = 1000 * Math.pow(2, cfg.__authRetryCount - 1);
+        authLog.info("retrying apphub request during auth grace period", {
+          status: response.status,
+          attempt: cfg.__authRetryCount,
+          delay,
+          url: cfg?.url,
+        });
+        return new Promise((resolve) =>
+          setTimeout(() => resolve(apphubInstance(config)), delay),
+        );
+      }
+    }
+
     return Promise.reject(error);
   },
 );
@@ -58,6 +106,7 @@ export class UnprocessableEntity extends Error {
 }
 
 export async function exchangeShopifyToken(shop: string, code: string) {
+  markExchangeStart();
   try {
     const params = { shop, code };
     const response = await apphubInstance.get(
@@ -79,8 +128,10 @@ export async function exchangeShopifyToken(shop: string, code: string) {
       }
       throw new Error(error.response?.data);
     }
-    console.error(error);
+    authLog.exception(error, { where: "exchangeShopifyToken" });
     return { error };
+  } finally {
+    markExchangeEnd();
   }
 }
 
@@ -138,7 +189,7 @@ export async function activePlan(
     if (axios.isAxiosError(error)) {
       throw new Error(error.response?.data);
     }
-    console.error(error);
+    planLog.exception(error, { where: "activePlan" });
     throw e;
   }
 }
@@ -151,7 +202,7 @@ export async function cancelPlan(): Promise<void> {
     if (axios.isAxiosError(error)) {
       throw new Error(error.response?.data);
     }
-    console.error(error);
+    planLog.exception(error, { where: "cancelPlan" });
     throw e;
   }
 }

@@ -12,7 +12,9 @@ import {
   Text,
 } from "@shopify/polaris";
 import CopyEmailLink from "../components/CopyEmailLink";
-import { SUPPORT_EMAIL } from "../components/Footer";
+import { env } from "../config/env";
+
+const SUPPORT_EMAIL = env.supportEmail;
 
 interface ArticleSection {
   heading: string;
