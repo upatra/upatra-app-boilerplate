@@ -6,7 +6,7 @@ import {
   BlockStack,
   Box,
   Button,
-  Divider,
+  Icon,
   InlineGrid,
   InlineStack,
   Modal,
@@ -14,6 +14,7 @@ import {
   SkeletonPage,
   Text,
 } from "@shopify/polaris";
+import { CheckIcon } from "@shopify/polaris-icons";
 import { usePlan } from "../context";
 import { capture, setShopProperties } from "../lib/posthog";
 import { FREE_BENEFITS, PLANS } from "../types/plan";
@@ -21,17 +22,30 @@ import type { Plan } from "../types/plan";
 
 // Polaris Card has wrapper elements that break height:100% propagation in a
 // grid. Replicate the visual here so every card stretches to the same height
-// and the CTA buttons line up across columns.
+// and the trial footer band can sit flush against the rounded corners.
 const planCard = (extra?: React.CSSProperties): React.CSSProperties => ({
   background: "var(--p-color-bg-surface)",
   borderRadius: "var(--p-border-radius-300)",
   boxShadow: "var(--p-shadow-100)",
   outline: "var(--p-border-width-025) solid var(--p-color-border)",
-  padding: "var(--p-space-400)",
   display: "flex",
   flexDirection: "column",
+  overflow: "hidden",
   ...extra,
 });
+
+const planCardBody: React.CSSProperties = {
+  padding: "var(--p-space-500)",
+  display: "flex",
+  flexDirection: "column",
+  flex: 1,
+};
+
+const planCardFooter: React.CSSProperties = {
+  padding: "var(--p-space-300) var(--p-space-500)",
+  background: "var(--p-color-bg-surface-secondary)",
+  borderTop: "var(--p-border-width-025) solid var(--p-color-border)",
+};
 
 export default function BillingPlanGrid() {
   const { currentShopPlan, cancelCurrentPlan, activeSelectedPlan, isPlanFetched } =
@@ -92,26 +106,58 @@ export default function BillingPlanGrid() {
     price: string,
     suffix: string,
     badge?: React.ReactNode,
+    annualNote?: string,
   ) => (
-    <div>
-      <Box minHeight="var(--p-space-600)" paddingBlockEnd="100">
-        {badge}
-      </Box>
-      <BlockStack gap="050">
-        <Text variant="headingMd" as="h3">
+    <BlockStack gap="100">
+      <InlineStack gap="200" align="space-between" blockAlign="center">
+        <Text variant="bodyLg" as="h3">
           {name}
         </Text>
-        <InlineStack gap="100" blockAlign="baseline">
-          <Text variant="heading2xl" as="p">
-            {price}
-          </Text>
-          <Text variant="bodySm" as="span" tone="subdued">
-            {suffix}
-          </Text>
-        </InlineStack>
-      </BlockStack>
-    </div>
+        {badge}
+      </InlineStack>
+      <InlineStack gap="100" blockAlign="baseline">
+        <Text variant="heading2xl" as="p" fontWeight="bold">
+          {price}
+        </Text>
+        <Text variant="bodyMd" as="span" tone="subdued">
+          {suffix}
+        </Text>
+      </InlineStack>
+      {annualNote ? (
+        <Text as="p" tone="success">
+          {annualNote}
+        </Text>
+      ) : null}
+    </BlockStack>
   );
+
+  const renderFeatures = (benefits: string[]) => (
+    <BlockStack gap="200">
+      <Text variant="headingSm" as="h4">
+        Features
+      </Text>
+      <BlockStack gap="100">
+        {benefits.map((b) => (
+          <InlineStack key={b} gap="200" blockAlign="start" wrap={false}>
+            <Box paddingBlockStart="050">
+              <Icon source={CheckIcon} tone="base" />
+            </Box>
+            <Text as="p" variant="bodyMd">
+              {b}
+            </Text>
+          </InlineStack>
+        ))}
+      </BlockStack>
+    </BlockStack>
+  );
+
+  const annualNoteFor = (plan: Plan): string | undefined => {
+    if (plan.interval !== "EVERY_30_DAYS" || !plan.annualAmount) return undefined;
+    const monthlyYearly = plan.amount * 12;
+    if (monthlyYearly <= 0) return undefined;
+    const savings = Math.round((1 - plan.annualAmount / monthlyYearly) * 100);
+    return `or $${plan.annualAmount}/year and save ${savings}%`;
+  };
 
   // Grid columns: 1 on phones, 2 on tablets, up to 4 on wider viewports.
   const columns: { xs: number; sm: number; md: number } = {
@@ -120,39 +166,45 @@ export default function BillingPlanGrid() {
     md: Math.min(4, PLANS.length + 1),
   };
 
+  // When any paid plan renders a trial footer band, give the Free card a
+  // matching footer ("Free forever") so card heights align across the grid.
+  const anyPlanHasTrialFooter = PLANS.some((p) => (p.trialDays ?? 0) > 0);
+
   const content = (
     <BlockStack gap="400">
       <InlineGrid columns={columns} gap="400">
         {/* Free card — always present */}
         <div style={planCard()}>
-          {renderCardHeader(
-            "Free",
-            "$0",
-            "/mo",
-            isPlanFetched && !hasActivePlan ? (
-              <Badge tone="success">Activated</Badge>
-            ) : undefined,
-          )}
-          <Box paddingBlockStart="400" paddingBlockEnd="300">
-            <Divider />
-          </Box>
-          <div style={{ flex: 1, paddingBottom: "var(--p-space-400)" }}>
-            <BlockStack gap="100">
-              {FREE_BENEFITS.map((b) => (
-                <Text key={b} variant="bodySm" as="p" tone="subdued">
-                  · {b}
-                </Text>
-              ))}
+          <div style={planCardBody}>
+            <BlockStack gap="500">
+              {renderCardHeader(
+                "Free",
+                "$0",
+                "/ month",
+                isPlanFetched && !hasActivePlan ? (
+                  <Badge tone="success">Activated</Badge>
+                ) : undefined,
+              )}
+              {renderFeatures(FREE_BENEFITS)}
             </BlockStack>
+            <Box paddingBlockStart="500">
+              <Button
+                variant="secondary"
+                disabled={!isPlanFetched || !hasActivePlan}
+                onClick={() => setDowngradeModalOpen(true)}
+                fullWidth
+              >
+                {!hasActivePlan ? "Current Plan" : "Downgrade to Free"}
+              </Button>
+            </Box>
           </div>
-          <Button
-            variant="secondary"
-            disabled={!isPlanFetched || !hasActivePlan}
-            onClick={() => setDowngradeModalOpen(true)}
-            fullWidth
-          >
-            {!hasActivePlan ? "Current Plan" : "Downgrade to Free"}
-          </Button>
+          {anyPlanHasTrialFooter ? (
+            <div style={planCardFooter}>
+              <Text as="p" variant="bodyMd">
+                Free forever
+              </Text>
+            </div>
+          ) : null}
         </div>
 
         {PLANS.map((plan) => {
@@ -170,43 +222,46 @@ export default function BillingPlanGrid() {
                   : undefined,
               )}
             >
-              {renderCardHeader(
-                plan.displayName,
-                `$${plan.amount}`,
-                plan.interval === "EVERY_30_DAYS" ? "/mo" : "/yr",
-                badge,
-              )}
-              <Box paddingBlockStart="400" paddingBlockEnd="300">
-                <Divider />
-              </Box>
-              <div style={{ flex: 1, paddingBottom: "var(--p-space-400)" }}>
-                <BlockStack gap="100">
-                  {plan.benefits.map((b) => (
-                    <Text key={b} variant="bodySm" as="p" tone="subdued">
-                      · {b}
-                    </Text>
-                  ))}
+              <div style={planCardBody}>
+                <BlockStack gap="500">
+                  {renderCardHeader(
+                    plan.displayName,
+                    `$${plan.amount}`,
+                    plan.interval === "EVERY_30_DAYS" ? "/ month" : "/ year",
+                    badge,
+                    annualNoteFor(plan),
+                  )}
+                  {renderFeatures(plan.benefits)}
                 </BlockStack>
+                <Box paddingBlockStart="500">
+                  <Button
+                    variant={plan.popular ? "primary" : "secondary"}
+                    disabled={!isPlanFetched || current || activatingPlanId !== null}
+                    loading={activatingPlanId === plan.id}
+                    onClick={() => {
+                      capture("plan_clicked", {
+                        plan_id: plan.id,
+                        plan_name: plan.displayName,
+                        plan_amount: plan.amount,
+                        plan_interval: plan.interval,
+                        current_plan_id: currentShopPlan?.upatraPlanId ?? "free",
+                      });
+                      setActivatingPlanId(plan.id);
+                      activeSelectedPlan(plan.id);
+                    }}
+                    fullWidth
+                  >
+                    {current ? "Current Plan" : `Get ${plan.displayName}`}
+                  </Button>
+                </Box>
               </div>
-              <Button
-                variant={plan.popular ? "primary" : "secondary"}
-                disabled={!isPlanFetched || current || activatingPlanId !== null}
-                loading={activatingPlanId === plan.id}
-                onClick={() => {
-                  capture("plan_clicked", {
-                    plan_id: plan.id,
-                    plan_name: plan.displayName,
-                    plan_amount: plan.amount,
-                    plan_interval: plan.interval,
-                    current_plan_id: currentShopPlan?.upatraPlanId ?? "free",
-                  });
-                  setActivatingPlanId(plan.id);
-                  activeSelectedPlan(plan.id);
-                }}
-                fullWidth
-              >
-                {current ? "Current Plan" : `Get ${plan.displayName}`}
-              </Button>
+              {plan.trialDays && plan.trialDays > 0 ? (
+                <div style={planCardFooter}>
+                  <Text as="p" variant="bodyMd">
+                    {plan.trialDays}-day free trial
+                  </Text>
+                </div>
+              ) : null}
             </div>
           );
         })}

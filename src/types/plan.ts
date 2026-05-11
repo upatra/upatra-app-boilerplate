@@ -45,6 +45,11 @@ export type Plan = {
   maxRowsPerUpload: number;
   popular?: boolean;
   hidden?: boolean;
+  // For monthly plans: the equivalent annual price. When set, the card renders
+  // an "or $X/year and save Y%" line; the savings percent is auto-computed.
+  annualAmount?: number;
+  // Renders an "X-day free trial" footer band on the card when > 0.
+  trialDays?: number;
 };
 
 // Map a plan id to its tier. App author fills this in alongside PLANS.
