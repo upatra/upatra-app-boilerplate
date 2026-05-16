@@ -16,7 +16,15 @@ import {
 } from "@shopify/polaris";
 import { CheckIcon } from "@shopify/polaris-icons";
 import { usePlan } from "../context";
-import { capture, setShopProperties } from "../lib/posthog";
+import {
+  applyActivatedShopProperties,
+  applyDowngradedToFreeShopProperties,
+  resolvePlanPageSource,
+  trackChargeCompleted,
+  trackPlanActivated,
+  trackPlanDowngraded,
+  trackPlanPageViewed,
+} from "../lib/analytics/events";
 import { FREE_BENEFITS, PLANS } from "../types/plan";
 import type { Plan } from "../types/plan";
 
@@ -56,41 +64,52 @@ const planCardAction: React.CSSProperties = {
 };
 
 export default function BillingPlanGrid() {
-  const { currentShopPlan, cancelCurrentPlan, activeSelectedPlan, isPlanFetched } =
-    usePlan();
+  const {
+    currentShopPlan,
+    cancelCurrentPlan,
+    activeSelectedPlan,
+    activatingPlanId,
+    isPlanFetched,
+  } = usePlan();
   const shopify = useAppBridge();
   const [searchParams, setSearchParams] = useSearchParams();
   const [downgradeModalOpen, setDowngradeModalOpen] = useState(false);
-  const [activatingPlanId, setActivatingPlanId] = useState<string | null>(null);
+
+  // Funnel source — resolved once from ?source= (or ?ref= for legacy entries)
+  // so plan_clicked and the returnUrl-threaded charge_completed share the same
+  // attribution. Skip resolution on the post-charge callback hop (?activated=);
+  // that source comes from the URL roundtrip, not the original page visit.
+  const pageSource = resolvePlanPageSource(
+    searchParams.get("source") ?? searchParams.get("ref"),
+  );
 
   useEffect(() => {
     if (!isPlanFetched) return;
-    const ref = searchParams.get("ref");
-    capture("plan_page_viewed", {
-      source: ref === "upgrade_modal" ? "upgrade_modal" : "direct",
-      current_plan_id: currentShopPlan?.upatraPlanId ?? "free",
+    if (searchParams.get("activated")) return;
+    trackPlanPageViewed({
+      ref: searchParams.get("source") ?? searchParams.get("ref"),
+      currentShopPlan,
     });
   }, [isPlanFetched]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Funnel step: Shopify redirects back here with ?activated= after charge confirmation.
+  // ?source rode along on the returnUrl so charge_completed keeps the original attribution.
   useEffect(() => {
     const activatedPlanId = searchParams.get("activated");
     if (!activatedPlanId) return;
-    const chargeId = searchParams.get("charge_id");
-    const plan = PLANS.find((p) => p.id === activatedPlanId);
-    capture("plan_activated", {
-      plan_id: activatedPlanId,
-      plan_name: plan?.displayName ?? activatedPlanId,
-      plan_amount: plan?.amount,
-      plan_interval: plan?.interval,
-      charge_id: chargeId,
+    const resolvedSource = resolvePlanPageSource(searchParams.get("source"));
+    trackPlanActivated({
+      activatedPlanId,
+      chargeId: searchParams.get("charge_id"),
     });
-    setShopProperties({
-      plan_id: activatedPlanId,
-      plan_name: plan?.displayName ?? activatedPlanId,
-    });
+    trackChargeCompleted({ activatedPlanId, source: resolvedSource });
+    applyActivatedShopProperties(activatedPlanId);
+    const activatedPlanName =
+      PLANS.find((p) => p.id === activatedPlanId)?.displayName ?? activatedPlanId;
+    shopify.toast.show(`${activatedPlanName} plan activated`, { duration: 4000 });
     searchParams.delete("activated");
     searchParams.delete("charge_id");
+    searchParams.delete("source");
     setSearchParams(searchParams, { replace: true });
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -100,12 +119,9 @@ export default function BillingPlanGrid() {
 
   const handleDowngrade = async () => {
     setDowngradeModalOpen(false);
-    capture("plan_downgraded", {
-      from_plan_id: currentShopPlan?.upatraPlanId,
-      from_plan_name: currentShopPlan?.name,
-    });
+    trackPlanDowngraded({ fromShopPlan: currentShopPlan });
     await cancelCurrentPlan();
-    setShopProperties({ plan_id: "free", plan_name: "Free" });
+    applyDowngradedToFreeShopProperties();
     shopify.toast.show("Plan downgraded", { duration: 4000 });
   };
 
@@ -247,15 +263,7 @@ export default function BillingPlanGrid() {
                     disabled={!isPlanFetched || current || activatingPlanId !== null}
                     loading={activatingPlanId === plan.id}
                     onClick={() => {
-                      capture("plan_clicked", {
-                        plan_id: plan.id,
-                        plan_name: plan.displayName,
-                        plan_amount: plan.amount,
-                        plan_interval: plan.interval,
-                        current_plan_id: currentShopPlan?.upatraPlanId ?? "free",
-                      });
-                      setActivatingPlanId(plan.id);
-                      activeSelectedPlan(plan.id);
+                      activeSelectedPlan(plan.id, { source: pageSource });
                     }}
                     fullWidth
                   >
