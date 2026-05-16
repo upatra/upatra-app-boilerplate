@@ -1,0 +1,23 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "copy": "Copy",
+    "copied": "Copied",
+    "edit": "Edit",
+    "done": "Done"
+  },
+  "labels": {
+    "loading": "Loading…"
+  },
+  "support": {
+    "footerPrefix": "Got any trouble or have recommendations? Mail us at",
+    "hint": "Please include your Shopify store URL (e.g. your-store.myshopify.com) and a screenshot or steps to reproduce so we can help faster.",
+    "builtForShopify": "Built for Shopify"
+  },
+  "nav": {
+    "billing": "Billing",
+    "help": "Help"
+  }
+}

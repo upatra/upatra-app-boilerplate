@@ -3,6 +3,7 @@ import App from "./App";
 import { configureLogger, type LogLevel, type LogSink } from "./lib/logger";
 import { loggingConfig } from "./config/logging";
 import { env } from "./config/env";
+import { initI18n } from "./i18n";
 
 const VALID_LEVELS: LogLevel[] = ["debug", "info", "warn", "error", "silent"];
 const VALID_SINKS: LogSink[] = ["console", "posthog"];
@@ -39,7 +40,10 @@ async function bootstrap() {
       );
     }
   }
-  createRoot(document.getElementById("root")!).render(<App />);
+  const { polarisTranslations } = await initI18n();
+  createRoot(document.getElementById("root")!).render(
+    <App polarisTranslations={polarisTranslations} />,
+  );
 }
 
 bootstrap();

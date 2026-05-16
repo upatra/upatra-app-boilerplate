@@ -48,7 +48,8 @@ export type Plan = {
   // For monthly plans: the equivalent annual price. When set, the card renders
   // an "or $X/year and save Y%" line; the savings percent is auto-computed.
   annualAmount?: number;
-  // Renders an "X-day free trial" footer band on the card when > 0.
+  // Renders a footer band on the card: "X-day free trial" when > 0, or
+  // "No free trial" when 0. Omit to hide the footer entirely.
   trialDays?: number;
 };
 

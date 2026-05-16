@@ -19,6 +19,7 @@ const asStringOr = (v: unknown, fallback: string): string => {
   return s.length > 0 ? s : fallback;
 };
 const asBool = (v: unknown): boolean => v === "true";
+const asBoolDefaultTrue = (v: unknown): boolean => v !== "false";
 
 const DEFAULT_SUPPORT_EMAIL = "steve@upatra.com";
 const DEFAULT_SUPPORT_HINT =
@@ -49,4 +50,8 @@ export const env = {
 
   supportEmail: asStringOr(raw.VITE_SUPPORT_EMAIL, DEFAULT_SUPPORT_EMAIL),
   supportHint: asStringOr(raw.VITE_SUPPORT_HINT, DEFAULT_SUPPORT_HINT),
+
+  // When false, the app stays in English regardless of the Shopify admin
+  // locale. Default is true; set VITE_ENABLE_I18N="false" to disable.
+  enableI18n: asBoolDefaultTrue(raw.VITE_ENABLE_I18N),
 } as const;

@@ -176,7 +176,7 @@ export default function BillingPlanGrid() {
 
   // When any paid plan renders a trial footer band, give the Free card a
   // matching footer ("Free forever") so card heights align across the grid.
-  const anyPlanHasTrialFooter = PLANS.some((p) => (p.trialDays ?? 0) > 0);
+  const anyPlanHasTrialFooter = PLANS.some((p) => p.trialDays !== undefined);
 
   const content = (
     <BlockStack gap="400">
@@ -263,10 +263,12 @@ export default function BillingPlanGrid() {
                   </Button>
                 </div>
               </div>
-              {plan.trialDays && plan.trialDays > 0 ? (
+              {plan.trialDays !== undefined ? (
                 <div style={planCardFooter}>
                   <Text as="p" variant="bodyMd">
-                    {plan.trialDays}-day free trial
+                    {plan.trialDays > 0
+                      ? `${plan.trialDays}-day free trial`
+                      : "No free trial"}
                   </Text>
                 </div>
               ) : null}

@@ -3,13 +3,18 @@ import "./App.css";
 import { AppProvider } from "@shopify/polaris";
 import { BrowserRouter } from "react-router-dom";
 import AppShell from "./components/AppShell";
+import type { PolarisTranslations } from "./i18n";
 
 const isShopifyEmbedded = window.self !== window.top;
 
-export default function App() {
+interface AppProps {
+  polarisTranslations: PolarisTranslations;
+}
+
+export default function App({ polarisTranslations }: AppProps) {
   return (
     <BrowserRouter>
-      <AppProvider i18n={{}}>
+      <AppProvider i18n={polarisTranslations}>
         {isShopifyEmbedded ? (
           <AppShell />
         ) : (

@@ -31,6 +31,7 @@ Copy `.env.example` to `.env` and fill in:
 - `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST` — Optional. PostHog stays inert when the key is empty (and outside production builds).
 - `VITE_LOG_LEVEL` / `VITE_LOG_SINKS` — Optional logger overrides. See `src/config/logging.ts` for the declarative baseline.
 - `VITE_SUPPORT_EMAIL` / `VITE_SUPPORT_HINT` — Optional. Defaults are set in `src/config/env.ts`.
+- `VITE_ENABLE_I18N` — Optional. Set to `"false"` to pin the app to English regardless of the Shopify admin locale. Defaults to `true`.
 
 ## Architecture
 
@@ -115,6 +116,34 @@ const onboarding = createOnboardingStore("onboarding")
 onboarding.set(shop, "dismissed")
 if (onboarding.has(shop, "dismissed")) { ... }
 ```
+
+### Internationalization (`src/i18n/`)
+
+`initI18n()` runs once in `main.tsx` before React mounts. It:
+
+1. Detects the locale from `window.shopify.config.locale` (App Bridge) with a `navigator.language` fallback
+2. Normalizes the BCP-47 tag to one of `SUPPORTED_LOCALES` in `i18n/locales.ts` (e.g. `fr-CA` → `fr`, `zh-Hant-TW` → `zh-TW`); unknown tags fall back to English
+3. Loads the app's JSON namespaces (statically for `en`, dynamic `import.meta.glob` for others) and the matching Polaris translation bundle in parallel
+4. Configures `i18next` + `react-i18next` and returns Polaris translations to `App` so they reach `<AppProvider i18n={...}>`
+
+Usage in components:
+
+```tsx
+import { useTranslation } from "react-i18next";
+
+function MyComponent() {
+  const { t } = useTranslation("common");
+  return <Text>{t("support.builtForShopify")}</Text>;
+}
+```
+
+Adding a namespace:
+
+1. Create `src/i18n/locales/en/<namespace>.json` (English is the fallback — always required)
+2. Statically import it in `src/i18n/index.ts` and add the name to `NAMESPACES`
+3. Add `src/i18n/locales/<locale>/<namespace>.json` for any non-English locales you ship; missing keys fall back to English per-key
+
+Disable per env: set `VITE_ENABLE_I18N="false"` to pin the app to English regardless of admin locale. The boilerplate ships only `en/common.json` as a starting point — extend as your app grows.
 
 ### Mock mode (MSW)
 
