@@ -19,5 +19,11 @@
   "nav": {
     "billing": "Billing",
     "help": "Help"
+  },
+  "reviewPrompt": {
+    "title": "Enjoying {{appName}}?",
+    "body": "If {{appName}} has saved you time, a short rating on the Shopify App Store goes a long way — it helps other store owners find it and tells me what to keep improving. Less than a minute, no pressure.",
+    "leaveReview": "Leave a review",
+    "maybeLater": "Maybe later"
   }
 }

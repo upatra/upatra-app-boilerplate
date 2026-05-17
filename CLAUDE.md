@@ -153,6 +153,7 @@ When `VITE_USE_MOCK=true`, `src/main.tsx` starts the MSW worker before mounting 
 
 - `useAuthExchange({ shopify, shop })` — boots App Bridge auth: wires `setSessionTokenGetter`, calls `shopify.idToken()`, exchanges with Apphub, returns `{ authReady, isNewInstall }`. Used by `AppShell`.
 - `useScrollToError(error)` — returns a ref to wrap an error banner. When `error` becomes truthy, scrolls the window and the nearest scrollable ancestor (e.g. a Polaris Modal body) to the top so the banner is the first thing the user sees.
+- `useReviewPrompt({ appName? })` — wraps `shopify.reviews.request()` with an opt-in confirmation modal, per-shop dismiss cooldown (3 → 6 → 10 silent skips), and terminal-state handling for Shopify response codes (`success`, `already-reviewed`, `cooldown-period`, etc.). Returns `{ trigger, modal }`. Call `trigger("placement_name")` from any "fresh win" surface (after a successful run, job done, milestone reached). State lives in `src/lib/reviewPromptState.ts` and is keyed per shop. Fires the `review_prompt_shown` PostHog event via `trackReviewPromptShown` in `src/lib/analytics/events.ts`. i18n keys in `common.json` under `reviewPrompt.*` interpolate `{{appName}}`.
 
 ### State Management
 

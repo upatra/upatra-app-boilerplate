@@ -215,3 +215,24 @@ export function applyShopPlanProperties(
 ): void {
   setShopProperties(buildShopPlanProperties(shopPlan));
 }
+
+// ---------------------------------------------------------------------------
+// Review prompt — segment by placement to see which success surface drives
+// the most prompts.
+// ---------------------------------------------------------------------------
+
+export interface ReviewPromptShownPayload {
+  placement: string;
+  dismiss_count: number;
+  [key: string]: unknown;
+}
+
+export function trackReviewPromptShown(args: {
+  placement: string;
+  dismissCount: number;
+}): void {
+  capture("review_prompt_shown", {
+    placement: args.placement,
+    dismiss_count: args.dismissCount,
+  });
+}
