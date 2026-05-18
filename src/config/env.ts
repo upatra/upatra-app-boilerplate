@@ -23,7 +23,7 @@ const asBoolDefaultTrue = (v: unknown): boolean => v !== "false";
 
 const DEFAULT_SUPPORT_EMAIL = "steve@upatra.com";
 const DEFAULT_SUPPORT_HINT =
-  "Please include your Shopify store URL (e.g. your-store.myshopify.com) and a screenshot or steps to reproduce so we can help faster.";
+  "Please include your Shopify store URL (e.g. admin.shopify.com/store/your-store) and a screenshot or steps to reproduce so we can help faster.";
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
 export const env = {
