@@ -1,5 +1,5 @@
 import { SkeletonPage } from "@shopify/polaris";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { useEffect, useRef } from "react";
 import { Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { AuthProvider, PlanProvider, useAuth } from "../context";
@@ -8,11 +8,10 @@ import { useAuthExchange } from "../hooks/useAuthExchange";
 import { initPostHog } from "../lib/posthog";
 import { BillingPage, HelpPage } from "../pages";
 
-const APP_TITLE = "My Shopify App";
 
 function HomePage() {
   return (
-    <SkeletonPage title={APP_TITLE}>
+    <SkeletonPage>
       {/* Replace with the app's home page content. */}
     </SkeletonPage>
   );
@@ -69,7 +68,6 @@ export default function AppShell() {
 
   return (
     <AuthProvider host={host} shop={shop} isNewInstall={isNewInstall}>
-      <TitleBar title={APP_TITLE} />
       {!authReady ? <SkeletonPage primaryAction /> : <AppContent />}
 
       <div ref={navRef}>
