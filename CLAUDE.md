@@ -66,7 +66,36 @@ Shopify Admin (iframe)
 
 The Shopify `<s-app-nav>` is wired in `AppShell` with `<s-link>` entries for `/billing` and `/help`. Add more links there as routes grow. The capture-phase click handler triggers `shopify.loading(true)` before navigation so the merchant sees the loading bar immediately.
 
-### Billing (`PlanContext`)
+#### Breadcrumb convention
+
+Every non-home page sets two things so the back-link appears in both the Polaris page header and the embedded admin chrome:
+
+- `backAction={{ content: homeLabel, onAction: () => navigate("/") }}` on `<Page>` — Polaris header back arrow
+- `<TitleBar title={pageTitle}><button onClick={() => navigate("/")}>{homeLabel}</button></TitleBar>` from `@shopify/app-bridge-react` — Shopify admin breadcrumb
+
+`homeLabel` comes from `useTranslation("common").t("nav.home")`. Detail pages should point back to their parent listing instead of `/` (e.g. a job detail's back target is `/jobs`, not home). Do NOT put a global `<TitleBar />` in `AppShell` — each page owns its own so titles and breadcrumb targets are correct per route.
+
+### Toasts
+
+Use the App Bridge toast API — never Polaris `<Toast>`. App Bridge toasts render in the Shopify admin chrome so they survive route transitions and look native.
+
+```ts
+import { useAppBridge } from "@shopify/app-bridge-react";
+const shopify = useAppBridge();
+shopify.toast.show(t("toast.planActivated", { plan }), { duration: 4000 });
+shopify.toast.show(t("toast.uploadFailed"), { duration: 4000, isError: true });
+```
+
+Rules:
+
+- **When to fire**: only after the user-visible side effect completes (success or failure) — never on intent or optimistic state. A spinner / button loading state covers in-flight; the toast is the resolution signal.
+- **i18n**: pass the message through `t("…")` (with `{ defaultValue }` if the key is new). Never hardcode a string.
+- **Errors**: set `isError: true`. Prefer the server-provided message when it's safe to surface; otherwise use a translated fallback.
+- **Duration**: 2000ms for quick confirmations (copied, downloaded), 3000–4000ms for state changes (created, updated, deleted, plan activated), 4000–5000ms for errors so the merchant has time to read.
+- **No stacking**: don't fire two toasts back-to-back for the same action. Pick the most informative one.
+- **No toasts for blocking failures**: if the user must take action to recover (invalid form field, missing permission), surface a Polaris `Banner` inline, not a toast that disappears.
+
+
 
 `PlanProvider` wraps the routes (in `AppContent`). It fetches the active plan from Apphub, exposes `usePlan()`:
 
