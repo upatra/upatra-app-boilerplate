@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useAppBridge } from "@shopify/app-bridge-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { useTranslation } from "react-i18next";
 import {
   Badge,
   BlockStack,
@@ -72,6 +73,9 @@ export default function BillingPlanGrid() {
     isPlanFetched,
   } = usePlan();
   const shopify = useAppBridge();
+  const navigate = useNavigate();
+  const { t: tCommon } = useTranslation("common");
+  const homeLabel = tCommon("nav.home", { defaultValue: "Home" });
   const [searchParams, setSearchParams] = useSearchParams();
   const [downgradeModalOpen, setDowngradeModalOpen] = useState(false);
 
@@ -295,7 +299,11 @@ export default function BillingPlanGrid() {
     <Page
       title="Billing"
       subtitle="Free to start — upgrade for higher limits and advanced features."
+      backAction={{ content: homeLabel, onAction: () => navigate("/") }}
     >
+      <TitleBar title="Billing">
+        <button onClick={() => navigate("/")}>{homeLabel}</button>
+      </TitleBar>
       <Modal
         open={downgradeModalOpen}
         onClose={() => setDowngradeModalOpen(false)}

@@ -17,6 +17,7 @@
     "builtForShopify": "Built for Shopify"
   },
   "nav": {
+    "home": "Home",
     "billing": "Billing",
     "help": "Help"
   },

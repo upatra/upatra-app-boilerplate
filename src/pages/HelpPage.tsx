@@ -11,6 +11,9 @@ import {
   Page,
   Text,
 } from "@shopify/polaris";
+import { TitleBar } from "@shopify/app-bridge-react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import CopyEmailLink from "../components/CopyEmailLink";
 import { env } from "../config/env";
 
@@ -130,8 +133,19 @@ function TableOfContents() {
 }
 
 export default function HelpPage() {
+  const navigate = useNavigate();
+  const { t } = useTranslation("common");
+  const homeLabel = t("nav.home", { defaultValue: "Home" });
+  const pageTitle = "Help & Guides";
   return (
-    <Page title="Help & Guides" subtitle="Learn how each feature works.">
+    <Page
+      title={pageTitle}
+      subtitle="Learn how each feature works."
+      backAction={{ content: homeLabel, onAction: () => navigate("/") }}
+    >
+      <TitleBar title={pageTitle}>
+        <button onClick={() => navigate("/")}>{homeLabel}</button>
+      </TitleBar>
       <Layout>
         <Layout.Section variant="oneThird">
           <Box paddingBlockEnd="400">
