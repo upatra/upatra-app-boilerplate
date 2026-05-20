@@ -1,7 +1,7 @@
 import { SkeletonPage } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { useEffect, useRef } from "react";
-import { Route, Routes, useLocation, useSearchParams } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { AuthProvider, PlanProvider, useAuth } from "../context";
 import Footer from "./Footer";
 import { useAuthExchange } from "../hooks/useAuthExchange";
@@ -25,7 +25,11 @@ function AppContent() {
     <PlanProvider>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/billing" element={<BillingPage />} />
+        <Route path="/pricing" element={<BillingPage />} />
+        <Route
+          path="/billing"
+          element={<Navigate to={{ pathname: "/pricing", search: window.location.search }} replace />}
+        />
         <Route path="/help" element={<HelpPage />} />
       </Routes>
       <Footer />
@@ -72,7 +76,7 @@ export default function AppShell() {
 
       <div ref={navRef}>
         <s-app-nav>
-          <s-link href="/billing">Billing</s-link>
+          <s-link href="/pricing">Pricing</s-link>
           <s-link href="/help">Help</s-link>
         </s-app-nav>
       </div>

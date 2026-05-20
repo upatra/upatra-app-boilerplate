@@ -292,16 +292,16 @@ export default function BillingPlanGrid() {
   );
 
   if (!isPlanFetched) {
-    return <SkeletonPage title="Billing">{content}</SkeletonPage>;
+    return <SkeletonPage title="Pricing">{content}</SkeletonPage>;
   }
 
   return (
     <Page
-      title="Billing"
+      title="Pricing"
       subtitle="Free to start — upgrade for higher limits and advanced features."
       backAction={{ content: homeLabel, onAction: () => navigate("/") }}
     >
-      <TitleBar title="Billing">
+      <TitleBar title="Pricing">
         <button onClick={() => navigate("/")}>{homeLabel}</button>
       </TitleBar>
       <Modal

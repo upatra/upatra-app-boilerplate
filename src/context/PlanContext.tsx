@@ -80,10 +80,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
     setActivatingPlanId(planId);
     shopify.loading(true);
     // Shopify echoes returnUrl back after the merchant approves the charge.
-    // The ?activated param is how the Billing page knows which plan confirmed.
+    // The ?activated param is how the Pricing page knows which plan confirmed.
     // ?source threads the funnel attribution through the redirect so
     // charge_completed can fire with the original source intact.
-    const returnUrl = `${getShopifyAdminAppUrl(shopifyDomain)}/billing?activated=${plan.id}&source=${encodeURIComponent(source)}`;
+    const returnUrl = `${getShopifyAdminAppUrl(shopifyDomain)}/pricing?activated=${plan.id}&source=${encodeURIComponent(source)}`;
     try {
       const confirmationUrl = await activePlan(
         plan.displayName,
