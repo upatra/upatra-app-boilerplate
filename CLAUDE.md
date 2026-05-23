@@ -32,6 +32,7 @@ Copy `.env.example` to `.env` and fill in:
 - `VITE_LOG_LEVEL` / `VITE_LOG_SINKS` — Optional logger overrides. See `src/config/logging.ts` for the declarative baseline.
 - `VITE_SUPPORT_EMAIL` / `VITE_SUPPORT_HINT` — Optional. Defaults are set in `src/config/env.ts`.
 - `VITE_ENABLE_I18N` — Optional. Set to `"false"` to pin the app to English regardless of the Shopify admin locale. Defaults to `true`.
+- `VITE_ENABLE_REVIEW_PROMPT` — Optional. Master switch for the "Enjoying {{appName}}?" wrapper around `shopify.reviews.request()`. Set to `"false"` to make `useReviewPrompt().trigger()` a no-op (modal never opens, no analytics fire). Defaults to `true`.
 
 ## Architecture
 
@@ -182,7 +183,7 @@ When `VITE_USE_MOCK=true`, `src/main.tsx` starts the MSW worker before mounting 
 
 - `useAuthExchange({ shopify, shop })` — boots App Bridge auth: wires `setSessionTokenGetter`, calls `shopify.idToken()`, exchanges with Apphub, returns `{ authReady, isNewInstall }`. Used by `AppShell`.
 - `useScrollToError(error)` — returns a ref to wrap an error banner. When `error` becomes truthy, scrolls the window and the nearest scrollable ancestor (e.g. a Polaris Modal body) to the top so the banner is the first thing the user sees.
-- `useReviewPrompt({ appName? })` — wraps `shopify.reviews.request()` with an opt-in confirmation modal, per-shop dismiss cooldown (3 → 6 → 10 silent skips), and terminal-state handling for Shopify response codes (`success`, `already-reviewed`, `cooldown-period`, etc.). Returns `{ trigger, modal }`. Call `trigger("placement_name")` from any "fresh win" surface (after a successful run, job done, milestone reached). State lives in `src/lib/reviewPromptState.ts` and is keyed per shop. Fires the `review_prompt_shown` PostHog event via `trackReviewPromptShown` in `src/lib/analytics/events.ts`. i18n keys in `common.json` under `reviewPrompt.*` interpolate `{{appName}}`.
+- `useReviewPrompt({ appName? })` — wraps `shopify.reviews.request()` with an opt-in confirmation modal, per-shop dismiss cooldown (3 → 6 → 10 silent skips), and terminal-state handling for Shopify response codes (`success`, `already-reviewed`, `cooldown-period`, etc.). Returns `{ trigger, modal }`. Call `trigger("placement_name")` from any "fresh win" surface (after a successful run, job done, milestone reached). State lives in `src/lib/reviewPromptState.ts` and is keyed per shop. Fires the `review_prompt_shown` PostHog event via `trackReviewPromptShown` in `src/lib/analytics/events.ts`. i18n keys in `common.json` under `reviewPrompt.*` interpolate `{{appName}}`. Globally enabled/disabled via `VITE_ENABLE_REVIEW_PROMPT` (defaults to true) — when off, `trigger()` is a no-op so feature code can call it unconditionally. For per-placement gating, wrap individual `trigger()` calls in your own env flag (see the `useReviewPromptOnJobDone` / `useReviewPromptOnPaypalSync` pattern in the bulk-fulfill app).
 
 ### State Management
 

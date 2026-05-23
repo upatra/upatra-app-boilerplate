@@ -16,6 +16,7 @@ import {
 } from "../lib/reviewPromptState";
 import { log } from "../lib/logger";
 import { trackReviewPromptShown } from "../lib/analytics/events";
+import { env } from "../config/env";
 
 const reviewLog = log.feature("reviewPrompt");
 
@@ -59,6 +60,7 @@ export function useReviewPrompt(
 
   const trigger = useCallback(
     (placement: string) => {
+      if (!env.enableReviewPrompt) return;
       if (!shopifyDomain) return;
       const stateBefore = getReviewPromptState(shopifyDomain);
       if (!consumeTrigger(shopifyDomain)) return;

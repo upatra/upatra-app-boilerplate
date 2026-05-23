@@ -25,4 +25,9 @@ describe("env exposes typed read-only env values", () => {
     expect(typeof env.useMock).toBe("boolean");
     expect(env.useMock).toBe(false);
   });
+
+  it("enableReviewPrompt defaults to true when env is empty", () => {
+    expect(typeof env.enableReviewPrompt).toBe("boolean");
+    expect(env.enableReviewPrompt).toBe(true);
+  });
 });

@@ -54,4 +54,10 @@ export const env = {
   // When false, the app stays in English regardless of the Shopify admin
   // locale. Default is true; set VITE_ENABLE_I18N="false" to disable.
   enableI18n: asBoolDefaultTrue(raw.VITE_ENABLE_I18N),
+
+  // Master switch for the "Enjoying {{appName}}?" review prompt wrapper
+  // around shopify.reviews.request(). Default is true; set
+  // VITE_ENABLE_REVIEW_PROMPT="false" to make useReviewPrompt.trigger() a
+  // no-op (modal never opens, no analytics fire).
+  enableReviewPrompt: asBoolDefaultTrue(raw.VITE_ENABLE_REVIEW_PROMPT),
 } as const;
