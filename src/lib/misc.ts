@@ -35,3 +35,35 @@ export function getShopifyAdminAppUrl(shopifyDomain: string): string {
 export function redirectToUrl(url: string): void {
   window.open(url, "_top");
 }
+
+// Canonical copy for the "the browser blocked the download" error toast. Keep
+// this the single source of truth so every download path shows identical
+// wording — pass it as the `defaultValue` of your i18n toast key.
+export const DOWNLOAD_BLOCKED_TOAST =
+  "Download was blocked. Please allow download for this site.";
+
+// Open a URL in a new tab to trigger a file download, detecting popup blocking.
+//
+// Returns `true` if the tab opened, `false` if the browser (or its popup
+// blocker) refused. A blocked `window.open` returns `null` — that's the only
+// download-block signal browsers actually expose. Do NOT pass `"noopener"`:
+// with that flag `window.open` returns `null` even on success, which would make
+// a blocked download indistinguishable from a successful one. We sever the
+// opener link manually instead to keep the same isolation guarantee.
+//
+// Typical use — toast the merchant when the browser blocks the download:
+//   if (!openDownloadTab(url)) {
+//     shopify.toast.show(t("toast.downloadBlocked", { defaultValue: DOWNLOAD_BLOCKED_TOAST }), { isError: true });
+//   }
+//
+// Note: this only works for URL-based downloads (new tab). Anchor+blob
+// downloads (`<a download>.click()`) give no success/failure signal at all and
+// cannot be detected — surface those with a manual fallback link instead.
+export function openDownloadTab(url: string): boolean {
+  const win = window.open(url, "_blank");
+  if (!win || win.closed || typeof win.closed === "undefined") {
+    return false;
+  }
+  win.opener = null;
+  return true;
+}

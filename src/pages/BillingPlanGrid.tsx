@@ -110,7 +110,13 @@ export default function BillingPlanGrid() {
     applyActivatedShopProperties(activatedPlanId);
     const activatedPlanName =
       PLANS.find((p) => p.id === activatedPlanId)?.displayName ?? activatedPlanId;
-    shopify.toast.show(`${activatedPlanName} plan activated`, { duration: 4000 });
+    shopify.toast.show(
+      tCommon("toast.planActivated", {
+        plan: activatedPlanName,
+        defaultValue: "{{plan}} plan activated",
+      }),
+      { duration: 4000 },
+    );
     searchParams.delete("activated");
     searchParams.delete("charge_id");
     searchParams.delete("source");
@@ -126,7 +132,10 @@ export default function BillingPlanGrid() {
     trackPlanDowngraded({ fromShopPlan: currentShopPlan });
     await cancelCurrentPlan();
     applyDowngradedToFreeShopProperties();
-    shopify.toast.show("Plan downgraded", { duration: 4000 });
+    shopify.toast.show(
+      tCommon("toast.planDowngraded", { defaultValue: "Plan downgraded" }),
+      { duration: 4000 },
+    );
   };
 
   const renderCardHeader = (
