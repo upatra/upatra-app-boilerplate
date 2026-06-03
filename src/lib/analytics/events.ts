@@ -236,3 +236,12 @@ export function trackReviewPromptShown(args: {
     dismiss_count: args.dismissCount,
   });
 }
+
+// ---------------------------------------------------------------------------
+// App directory ("More Upatra apps") — re-exported from its own module.
+// ---------------------------------------------------------------------------
+
+export {
+  trackAppDirectoryViewed,
+  trackAppDirectoryCardClicked,
+} from "./appDirectory";

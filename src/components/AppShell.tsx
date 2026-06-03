@@ -6,7 +6,7 @@ import { AuthProvider, PlanProvider, useAuth } from "../context";
 import Footer from "./Footer";
 import { useAuthExchange } from "../hooks/useAuthExchange";
 import { initPostHog } from "../lib/posthog";
-import { BillingPage, HelpPage } from "../pages";
+import { AppDirectoryPage, BillingPage, HelpPage } from "../pages";
 
 
 function HomePage() {
@@ -31,6 +31,7 @@ function AppContent() {
           element={<Navigate to={{ pathname: "/pricing", search: window.location.search }} replace />}
         />
         <Route path="/help" element={<HelpPage />} />
+        <Route path="/more-apps" element={<AppDirectoryPage />} />
       </Routes>
       <Footer />
     </PlanProvider>
@@ -77,6 +78,7 @@ export default function AppShell() {
       <div ref={navRef}>
         <s-app-nav>
           <s-link href="/pricing">Pricing</s-link>
+          <s-link href="/more-apps">More apps</s-link>
           <s-link href="/help">Help</s-link>
         </s-app-nav>
       </div>

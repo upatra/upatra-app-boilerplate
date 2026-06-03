@@ -105,6 +105,40 @@ export class UnprocessableEntity extends Error {
   }
 }
 
+/** One entry in apphub's public Upatra-app catalog (`GET /apps`). Keys are
+ *  camelized from the snake_case wire shape by the response interceptor. */
+export interface AppCatalogEntry {
+  appCode: string;
+  appSlug: string;
+  appName: string;
+  description: string;
+  status: "live" | "coming_soon";
+  /** base64 PNG `data:` URI, or null for apps without an icon yet. */
+  icon: string | null;
+}
+
+/** Fetch the portfolio app catalog for the "More Upatra apps" directory.
+ *  Passes the current app's code as `exclude` so apphub leaves it out (the
+ *  merchant is already inside it) and the active `locale` so descriptions come
+ *  back localized (English fallback). Unauthenticated endpoint; returns [] on
+ *  error so the directory page degrades to empty rather than crashing. */
+export async function getAppCatalog(
+  locale?: string,
+): Promise<AppCatalogEntry[]> {
+  try {
+    const response = await apphubInstance.get("/apps", {
+      params: {
+        ...(SHOPIFY_APP_CODE ? { exclude: SHOPIFY_APP_CODE } : {}),
+        ...(locale ? { locale } : {}),
+      },
+    });
+    return (response.data?.apps ?? []) as AppCatalogEntry[];
+  } catch (e) {
+    log.exception(e, { where: "getAppCatalog" });
+    return [];
+  }
+}
+
 export async function exchangeShopifyToken(shop: string, code: string) {
   markExchangeStart();
   try {
