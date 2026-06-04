@@ -18,10 +18,13 @@ export function trackAppDirectoryCardClicked(args: {
   app: string;
   appSlug: string;
   status: string;
+  /** Which part of the card was clicked: "icon" | "title" | "button". */
+  element: string;
 }): void {
   capture("app_directory_card_clicked", {
     app: args.app,
     app_slug: args.appSlug,
     status: args.status,
+    element: args.element,
   });
 }

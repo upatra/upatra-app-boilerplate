@@ -3,11 +3,11 @@ import {
   Badge,
   BlockStack,
   Box,
-  Button,
   Card,
   Icon,
   InlineGrid,
   InlineStack,
+  Link,
   Page,
   SkeletonBodyText,
   SkeletonDisplayText,
@@ -22,11 +22,27 @@ import {
   trackAppDirectoryViewed,
 } from "../../lib/analytics/events";
 import { log } from "../../lib/logger";
+import { env } from "../../config/env";
 
 const ICON_SIZE = 56;
 
-function AppStoreUrl(slug: string): string {
-  return `https://apps.shopify.com/${slug}`;
+// Which element of the card was clicked — mirrored into both the PostHog
+// event (`element`) and the listing URL (`utm_content`).
+type CardElement = "icon" | "title";
+
+// Attribution for the Partner Dashboard: Shopify's app-store analytics break
+// listing traffic down by UTM params. utm_source identifies the host app
+// sending the click (e.g. "bulk-fulfill"), utm_campaign the surface.
+const UTM_SOURCE = (env.appCode || "upatra-app").replace(/_/g, "-");
+
+function AppStoreUrl(slug: string, element: CardElement): string {
+  const params = new URLSearchParams({
+    utm_source: UTM_SOURCE,
+    utm_medium: "in_app",
+    utm_campaign: "more_apps",
+    utm_content: element,
+  });
+  return `https://apps.shopify.com/${slug}?${params.toString()}`;
 }
 
 function AppIcon({ src }: { src: string | null }) {
@@ -73,48 +89,63 @@ function AppCard({ app }: { app: AppCatalogEntry }) {
   const { t } = useTranslation("common");
   const isLive = app.status === "live";
 
-  const onInstall = () => {
+  const openListing = (element: CardElement) => {
     trackAppDirectoryCardClicked({
       app: app.appCode,
       appSlug: app.appSlug,
       status: app.status,
+      element,
     });
-    window.open(AppStoreUrl(app.appSlug), "_blank", "noopener,noreferrer");
+    window.open(
+      AppStoreUrl(app.appSlug, element),
+      "_blank",
+      "noopener,noreferrer",
+    );
   };
 
   return (
     <Card>
-      <BlockStack gap="400">
-        <InlineStack gap="300" blockAlign="start" wrap={false}>
+      <InlineStack gap="300" blockAlign="start" wrap={false}>
+        {/* Icon click is redundant with the title link (keyboard-accessible),
+            so it stays out of the tab order. */}
+        {isLive ? (
+          <div
+            onClick={() => openListing("icon")}
+            style={{ cursor: "pointer", flexShrink: 0 }}
+          >
+            <AppIcon src={app.icon} />
+          </div>
+        ) : (
           <AppIcon src={app.icon} />
-          <BlockStack gap="100">
-            <InlineStack gap="200" blockAlign="center" wrap={false}>
+        )}
+        <BlockStack gap="100">
+          <InlineStack gap="200" blockAlign="center" wrap={false}>
+            {isLive ? (
+              <Link
+                monochrome
+                removeUnderline
+                onClick={() => openListing("title")}
+              >
+                <Text as="h2" variant="headingMd">
+                  {app.appName}
+                </Text>
+              </Link>
+            ) : (
               <Text as="h2" variant="headingMd">
                 {app.appName}
               </Text>
-              {!isLive && (
-                <Badge tone="info">
-                  {t("appDirectory.comingSoon", { defaultValue: "Coming soon" })}
-                </Badge>
-              )}
-            </InlineStack>
-            <Text as="p" tone="subdued">
-              {app.description}
-            </Text>
-          </BlockStack>
-        </InlineStack>
-        <InlineStack align="end">
-          {isLive ? (
-            <Button variant="primary" onClick={onInstall}>
-              {t("appDirectory.view", { defaultValue: "View on App Store" })}
-            </Button>
-          ) : (
-            <Button disabled>
-              {t("appDirectory.comingSoon", { defaultValue: "Coming soon" })}
-            </Button>
-          )}
-        </InlineStack>
-      </BlockStack>
+            )}
+            {!isLive && (
+              <Badge tone="info">
+                {t("appDirectory.comingSoon", { defaultValue: "Coming soon" })}
+              </Badge>
+            )}
+          </InlineStack>
+          <Text as="p" tone="subdued">
+            {app.description}
+          </Text>
+        </BlockStack>
+      </InlineStack>
     </Card>
   );
 }
