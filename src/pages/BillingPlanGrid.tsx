@@ -5,9 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   Badge,
   BlockStack,
-  Box,
   Button,
-  Icon,
   InlineGrid,
   InlineStack,
   Modal,
@@ -15,7 +13,6 @@ import {
   SkeletonPage,
   Text,
 } from "@shopify/polaris";
-import { CheckIcon } from "@shopify/polaris-icons";
 import { usePlan } from "../context";
 import {
   applyActivatedShopProperties,
@@ -44,14 +41,14 @@ const planCard = (extra?: React.CSSProperties): React.CSSProperties => ({
 });
 
 const planCardBody: React.CSSProperties = {
-  padding: "var(--p-space-500)",
+  padding: "var(--p-space-400)",
   display: "flex",
   flexDirection: "column",
   flex: 1,
 };
 
 const planCardFooter: React.CSSProperties = {
-  padding: "var(--p-space-300) var(--p-space-500)",
+  padding: "var(--p-space-300) var(--p-space-400)",
   background: "var(--p-color-bg-surface-secondary)",
   borderTop: "var(--p-border-width-025) solid var(--p-color-border)",
 };
@@ -61,7 +58,7 @@ const planCardFooter: React.CSSProperties = {
 // benefits each plan lists.
 const planCardAction: React.CSSProperties = {
   marginTop: "auto",
-  paddingTop: "var(--p-space-500)",
+  paddingTop: "var(--p-space-400)",
 };
 
 export default function BillingPlanGrid() {
@@ -152,39 +149,32 @@ export default function BillingPlanGrid() {
         </Text>
         {badge}
       </InlineStack>
-      <InlineStack gap="100" blockAlign="baseline">
-        <Text variant="heading2xl" as="p" fontWeight="bold">
+      <InlineStack gap="100" blockAlign="baseline" wrap={false}>
+        <Text variant="headingXl" as="p" fontWeight="bold">
           {price}
         </Text>
-        <Text variant="bodyMd" as="span" tone="subdued">
+        <Text variant="bodySm" as="span" tone="subdued">
           {suffix}
         </Text>
       </InlineStack>
       {annualNote ? (
-        <Text as="p" tone="success">
+        <Text as="p" variant="bodySm" tone="success">
           {annualNote}
         </Text>
       ) : null}
     </BlockStack>
   );
 
+  // Benefit bullets render as simple subdued "·" lines (matching the
+  // aiz-exporter / bulk-fulfill pricing grids) so every plan column reads the
+  // same regardless of how many benefits it lists.
   const renderFeatures = (benefits: string[]) => (
-    <BlockStack gap="200">
-      <Text variant="headingSm" as="h4">
-        Features
-      </Text>
-      <BlockStack gap="100">
-        {benefits.map((b) => (
-          <InlineStack key={b} gap="200" blockAlign="start" wrap={false}>
-            <Box paddingBlockStart="050">
-              <Icon source={CheckIcon} tone="base" />
-            </Box>
-            <Text as="p" variant="bodyMd">
-              {b}
-            </Text>
-          </InlineStack>
-        ))}
-      </BlockStack>
+    <BlockStack gap="100">
+      {benefits.map((b, i) => (
+        <Text key={`${b}-${i}`} variant="bodySm" as="p" tone="subdued">
+          · {b}
+        </Text>
+      ))}
     </BlockStack>
   );
 
@@ -209,11 +199,11 @@ export default function BillingPlanGrid() {
 
   const content = (
     <BlockStack gap="400">
-      <InlineGrid columns={columns} gap="400">
+      <InlineGrid columns={columns} gap="300">
         {/* Free card — always present */}
         <div style={planCard()}>
           <div style={planCardBody}>
-            <BlockStack gap="500">
+            <BlockStack gap="400">
               {renderCardHeader(
                 "Free",
                 "$0",
@@ -260,7 +250,7 @@ export default function BillingPlanGrid() {
               )}
             >
               <div style={planCardBody}>
-                <BlockStack gap="500">
+                <BlockStack gap="400">
                   {renderCardHeader(
                     plan.displayName,
                     `$${plan.amount}`,
