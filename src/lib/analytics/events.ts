@@ -245,3 +245,18 @@ export {
   trackAppDirectoryViewed,
   trackAppDirectoryCardClicked,
 } from "./appDirectory";
+
+// ---------------------------------------------------------------------------
+// Cross-app promo banner — re-exported from its own module.
+// ---------------------------------------------------------------------------
+
+export type {
+  CrossAppBannerPlacement,
+  CrossAppBannerProps,
+} from "./crossAppBanner";
+export {
+  trackCrossAppBannerShown,
+  trackCrossAppBannerClicked,
+  trackCrossAppMoreAppsClicked,
+  trackCrossAppBannerDismissed,
+} from "./crossAppBanner";

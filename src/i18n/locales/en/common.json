@@ -28,6 +28,15 @@
     "comingSoon": "Coming soon",
     "empty": "No other apps to show right now."
   },
+  "crossAppBanner": {
+    "seeAllApps": "See all apps",
+    "trust": "From the makers of this app",
+    "cta": "Try {{appName}}",
+    "pitch": {
+      "aiz_exporter": "Schedule CSV, Excel or JSON exports of orders, products & customers — filtered your way and auto-delivered to email, FTP or Google Sheets.",
+      "bulk_tagging": "Auto-tag orders, products & customers by rule — and tag in bulk by hand or CSV. Keep your store organized without the busywork."
+    }
+  },
   "reviewPrompt": {
     "title": "Enjoying {{appName}}?",
     "body": "If {{appName}} has saved you time, a short rating on the Shopify App Store goes a long way — it helps other store owners find it and tells me what to keep improving. Less than a minute, no pressure.",

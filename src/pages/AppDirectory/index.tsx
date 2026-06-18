@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Badge,
   BlockStack,
@@ -89,18 +90,17 @@ function AppCard({ app }: { app: AppCatalogEntry }) {
   const { t } = useTranslation("common");
   const isLive = app.status === "live";
 
-  const openListing = (element: CardElement) => {
+  // Track-only: navigation happens via the anchor's `url` (Polaris Link),
+  // because `window.open` is popup-blocked inside Shopify's embedded App Bridge
+  // iframe — the click logged but the App Store never opened (clicks, no
+  // installs). A real anchor click is a trusted gesture the browser allows.
+  const trackClick = (element: CardElement) => {
     trackAppDirectoryCardClicked({
       app: app.appCode,
       appSlug: app.appSlug,
       status: app.status,
       element,
     });
-    window.open(
-      AppStoreUrl(app.appSlug, element),
-      "_blank",
-      "noopener,noreferrer",
-    );
   };
 
   return (
@@ -109,12 +109,13 @@ function AppCard({ app }: { app: AppCatalogEntry }) {
         {/* Icon click is redundant with the title link (keyboard-accessible),
             so it stays out of the tab order. */}
         {isLive ? (
-          <div
-            onClick={() => openListing("icon")}
-            style={{ cursor: "pointer", flexShrink: 0 }}
+          <Link
+            url={AppStoreUrl(app.appSlug, "icon")}
+            external
+            onClick={() => trackClick("icon")}
           >
             <AppIcon src={app.icon} />
-          </div>
+          </Link>
         ) : (
           <AppIcon src={app.icon} />
         )}
@@ -122,9 +123,11 @@ function AppCard({ app }: { app: AppCatalogEntry }) {
           <InlineStack gap="200" blockAlign="center" wrap={false}>
             {isLive ? (
               <Link
+                url={AppStoreUrl(app.appSlug, "title")}
+                external
                 monochrome
                 removeUnderline
-                onClick={() => openListing("title")}
+                onClick={() => trackClick("title")}
               >
                 <Text as="h2" variant="headingMd">
                   {app.appName}
@@ -167,6 +170,10 @@ function LoadingGrid() {
 
 export default function AppDirectoryPage() {
   const { t, i18n } = useTranslation("common");
+  const [searchParams] = useSearchParams();
+  // Attribution: the cross-app banner links here with ?from=cross_app_banner so
+  // the banner→directory funnel is sliceable from the page's own traffic.
+  const source = searchParams.get("from") ?? undefined;
   const [apps, setApps] = useState<AppCatalogEntry[] | null>(null);
   // Guard so the impression event fires once per page view, not on every render.
   const viewedTracked = useRef(false);
@@ -179,7 +186,7 @@ export default function AppDirectoryPage() {
         setApps(list);
         if (!viewedTracked.current) {
           viewedTracked.current = true;
-          trackAppDirectoryViewed({ appCount: list.length });
+          trackAppDirectoryViewed({ appCount: list.length, source });
         }
       })
       .catch((e) => {
@@ -190,7 +197,7 @@ export default function AppDirectoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [i18n.language]);
+  }, [i18n.language, source]);
 
   const title = t("appDirectory.title", { defaultValue: "More Upatra apps" });
 

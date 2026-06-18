@@ -10,8 +10,19 @@
  */
 import { capture } from "../posthog";
 
-export function trackAppDirectoryViewed(args: { appCount: number }): void {
-  capture("app_directory_viewed", { app_count: args.appCount });
+export function trackAppDirectoryViewed(args: {
+  appCount: number;
+  /**
+   * Where the merchant arrived from: "cross_app_banner" when they followed the
+   * banner's "See all apps" link, "nav" for the app-nav entry / direct visit.
+   * Lets us measure the banner→directory funnel against the page's own CTR.
+   */
+  source?: string;
+}): void {
+  capture("app_directory_viewed", {
+    app_count: args.appCount,
+    source: args.source ?? "nav",
+  });
 }
 
 export function trackAppDirectoryCardClicked(args: {

@@ -37,6 +37,9 @@ export const env = {
   apphubUrl: asString(raw.VITE_APPHUB_URL),
   appCode: asString(raw.VITE_APP_CODE),
   appHandle: asString(raw.VITE_APP_HANDLE),
+  // Human-readable app name, used in UI copy (e.g. the review prompt's
+  // "Enjoying {{appName}}?"). Falls back to a generic placeholder.
+  appName: asStringOr(raw.VITE_APP_NAME, "our app"),
 
   useMock: asBool(raw.VITE_USE_MOCK),
 
@@ -60,4 +63,10 @@ export const env = {
   // VITE_ENABLE_REVIEW_PROMPT="false" to make useReviewPrompt.trigger() a
   // no-op (modal never opens, no analytics fire).
   enableReviewPrompt: asBoolDefaultTrue(raw.VITE_ENABLE_REVIEW_PROMPT),
+
+  // Master kill switch for the cross-app promo banner (portfolio cross-sell at
+  // the global_footer placement, with the app shown chosen per-shop from the
+  // apphub catalog). Default OFF — flip to "true" per environment once QA
+  // passes and the apphub catalog returns this app's siblings.
+  crossAppBannerEnabled: asBool(raw.VITE_CROSS_APP_BANNER_ENABLED),
 } as const;

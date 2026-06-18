@@ -117,22 +117,44 @@ export interface AppCatalogEntry {
   icon: string | null;
 }
 
-/** Fetch the portfolio app catalog for the "More Upatra apps" directory.
- *  Passes the current app's code as `exclude` so apphub leaves it out (the
- *  merchant is already inside it) and the active `locale` so descriptions come
- *  back localized (English fallback). Unauthenticated endpoint; returns [] on
- *  error so the directory page degrades to empty rather than crashing. */
+/** Fetch the portfolio app catalog (excluding the current app) for the "More
+ *  Upatra apps" directory and the cross-app promo banner.
+ *
+ *  Passes the current app's code as both `app_code` (so apphub verifies the
+ *  session token against this app's secret and can resolve the shop's
+ *  `installed_apps`) and `exclude` (so the merchant's current app is left out),
+ *  plus the active `locale` so descriptions come back localized (English
+ *  fallback).
+ *
+ *  By default returns the full catalog — the directory page lists every other
+ *  Upatra app regardless of install state. Pass `excludeInstalled: true` (the
+ *  promo banner) to additionally drop apps the shop already has, using the
+ *  authenticated `installed_apps` field. Anonymous/expired tokens omit
+ *  `installed_apps`, so the full catalog passes through unchanged.
+ *
+ *  Returns [] on error so the directory page / banner degrade to empty rather
+ *  than crashing. */
 export async function getAppCatalog(
   locale?: string,
+  opts?: { excludeInstalled?: boolean },
 ): Promise<AppCatalogEntry[]> {
   try {
     const response = await apphubInstance.get("/apps", {
       params: {
-        ...(SHOPIFY_APP_CODE ? { exclude: SHOPIFY_APP_CODE } : {}),
+        // Query params are not decamelized by the request interceptor (it only
+        // touches `config.data`), so send the wire key `app_code` directly.
+        ...(SHOPIFY_APP_CODE
+          ? { app_code: SHOPIFY_APP_CODE, exclude: SHOPIFY_APP_CODE }
+          : {}),
         ...(locale ? { locale } : {}),
       },
     });
-    return (response.data?.apps ?? []) as AppCatalogEntry[];
+    const apps = (response.data?.apps ?? []) as AppCatalogEntry[];
+    if (!opts?.excludeInstalled) return apps;
+    const installed = (response.data?.installedApps ?? []) as string[];
+    if (installed.length === 0) return apps;
+    const installedSet = new Set(installed);
+    return apps.filter((a) => !installedSet.has(a.appCode));
   } catch (e) {
     log.exception(e, { where: "getAppCatalog" });
     return [];
