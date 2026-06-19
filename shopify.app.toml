@@ -21,16 +21,17 @@ use_legacy_install_flow = false
 [webhooks]
 api_version = "2026-01"
 
+  # Replace {app-code} with this app's VITE_APP_CODE value.
   [[webhooks.subscriptions]]
-  uri = "https://your-webhook-url.com/customers_data_request"
+  uri = "https://webhook.upatra.com/{app-code}/customers_data_request"
   compliance_topics = [ "customers/data_request" ]
 
   [[webhooks.subscriptions]]
-  uri = "https://your-webhook-url.com/customers_redact"
+  uri = "https://webhook.upatra.com/{app-code}/customers_redact"
   compliance_topics = [ "customers/redact" ]
 
   [[webhooks.subscriptions]]
-  uri = "https://your-webhook-url.com/shop_redact"
+  uri = "https://webhook.upatra.com/{app-code}/shop_redact"
   compliance_topics = [ "shop/redact" ]
 
 [auth]
