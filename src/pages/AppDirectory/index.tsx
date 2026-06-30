@@ -183,7 +183,13 @@ export default function AppDirectoryPage() {
     getAppCatalog(i18n.language)
       .then((list) => {
         if (cancelled) return;
-        setApps(list);
+        // Coming-soon (non-live) apps always sort to the end; live apps keep
+        // their catalog order. Stable so relative order within each group holds.
+        const ordered = [...list].sort(
+          (a, b) =>
+            (a.status === "live" ? 0 : 1) - (b.status === "live" ? 0 : 1),
+        );
+        setApps(ordered);
         if (!viewedTracked.current) {
           viewedTracked.current = true;
           trackAppDirectoryViewed({ appCount: list.length, source });

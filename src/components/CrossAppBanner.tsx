@@ -17,10 +17,15 @@ import { log } from "../lib/logger";
 import { getAppCatalog, type AppCatalogEntry } from "../lib/apphubApi";
 import {
   crossAppPitch,
+  crossAppPitchVariantCount,
   crossAppStoreUrl,
   dismissCrossAppBanner,
+  getCrossAppDismissCount,
   pickCrossAppArm,
+  recordCrossAppClick,
+  recordCrossAppImpression,
   shouldShowCrossAppBanner,
+  stampCrossAppInstall,
 } from "../lib/crossAppBanner";
 import {
   trackCrossAppBannerClicked,
@@ -106,9 +111,16 @@ export function CrossAppBanner({
 }: {
   placement: CrossAppBannerPlacement;
 }) {
-  const { shopifyDomain } = useAuth();
+  const { shopifyDomain, isNewInstall } = useAuth();
   const { t, i18n } = useTranslation("common");
   const navigate = useNavigate();
+
+  // Anchor the new-install window: stamp install time once, the first time
+  // apphub tells us this is a fresh install. Runs regardless of eligibility so
+  // the date is recorded even when the banner is currently rested. Idempotent.
+  useEffect(() => {
+    if (isNewInstall === true) stampCrossAppInstall(shopifyDomain);
+  }, [isNewInstall, shopifyDomain]);
 
   // Eligibility (kill switch + dismiss backoff) is decided once at mount. Both
   // are stable for the lifetime of a render, so there's no need to re-check.
@@ -144,6 +156,8 @@ export function CrossAppBanner({
   // banner itself registers its presence so the footer can see it.
   const visible = eligible && !dismissed && app !== null;
   const footerSuppressed = placement === "global_footer" && pageBannerCount > 0;
+  // Any in-page placement registers so the persistent footer dedups itself
+  // while a more salient banner is on screen.
   const registersAsPageBanner = visible && placement !== "global_footer";
 
   useEffect(() => {
@@ -164,7 +178,12 @@ export function CrossAppBanner({
       appSlug: app.appSlug,
       placement,
     });
-  }, [shouldRender, app, placement]);
+    // Count this impression toward the auto-backoff-on-ignore threshold. When
+    // it tips over, the banner soft-dismisses and rests (next mount won't show
+    // it until the backoff elapses) — this is what stops the per-shop
+    // impression blindness on the persistent footer.
+    recordCrossAppImpression(shopifyDomain);
+  }, [shouldRender, app, placement, shopifyDomain]);
 
   if (!shouldRender || !app) return null;
 
@@ -183,6 +202,9 @@ export function CrossAppBanner({
       appSlug: app.appSlug,
       placement,
     });
+    // Engaged: clear the ignore counter so a clicker is never rested for
+    // "ignoring" the banner, and mark the shop as having engaged at least once.
+    recordCrossAppClick(shopifyDomain);
   };
 
   // "See all apps" routes to the in-app More Apps directory (internal SPA route,
@@ -221,9 +243,17 @@ export function CrossAppBanner({
   const trust = t("crossAppBanner.trust", {
     defaultValue: "From the makers of this app",
   });
-  // Benefit-led pitch (falls back to the catalog description for unknown apps).
-  const pitch = t(`crossAppBanner.pitch.${app.appCode}`, {
-    defaultValue: crossAppPitch(app.appCode, app.description),
+  // Benefit-led pitch, rotated by rest cycle so a re-shown banner says something
+  // new (same pitch every time trains the merchant to ignore it). The rotation
+  // index is the shop's dismiss/rest count; the i18n key carries the variant so
+  // a cached translation can't pin the copy to one angle. Falls back to the
+  // catalog description for apps without curated variants.
+  const variantCount = crossAppPitchVariantCount(app.appCode);
+  const rotation = variantCount > 0
+    ? getCrossAppDismissCount(shopifyDomain) % variantCount
+    : 0;
+  const pitch = t(`crossAppBanner.pitch.${app.appCode}.v${rotation}`, {
+    defaultValue: crossAppPitch(app.appCode, app.description, rotation),
   });
 
   // Non-footer placements — a full Polaris Banner: more real estate, higher
